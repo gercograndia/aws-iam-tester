@@ -126,7 +126,7 @@ def test_policy(number_of_runs, dry_run, user_landing_account, write_to_file, de
                         source=source,
                         expect_failures=expect_failures,
                         results=failures,
-                        print_results=debug,
+                        print_results=True if write_to_file==False and debug==False else debug,
                         )
                     results.extend(r)
 
