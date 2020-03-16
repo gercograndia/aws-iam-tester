@@ -1,4 +1,1 @@
-boto3
-pyyaml
-termcolor
-click
+twine
