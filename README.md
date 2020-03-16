@@ -59,6 +59,14 @@ Using a specific config file:
 aws-iam-tester --config-file my-config.yml
 ```
 
+Include roles that cannot be assumed by human beings:
+
+```bash
+aws-iam-tester --include-system-roles
+```
+
+> Note: including system roles does NOT include the aws service roles.
+
 Or print debug output:
 
 ```bash

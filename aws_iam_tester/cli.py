@@ -31,9 +31,10 @@ config = Config(
 @click.option('--number-of-runs', '-n', help='Run only a limited number of simulations, and then abort.', type=int, default=-1)
 @click.option('--dry-run/--no-dry-run', '-dr/-ndr', help='Dry run mode will not run the actual policy simulations.', default=False)
 @click.option('--config-file', '-c', help='Config file, default config.yml.', default='config.yml')
+@click.option('--include-system-roles/--no-include-system-roles', '-sr/-nsr', help='Include non-user-assumable roles.', default=False)
 @click.option('--write-to-file/--no-write-to-file', '-w/-nw', help='Write results to file.', default=False)
 @click.option('--debug/--no-debug', '-d/-nd', help='Print debug messages.', default=False)
-def test_policies(number_of_runs, dry_run, config_file, write_to_file, debug):
+def test_policies(number_of_runs, dry_run, config_file, include_system_roles, write_to_file, debug):
     setup_logger(
         debug=debug,
         )
@@ -46,7 +47,11 @@ def test_policies(number_of_runs, dry_run, config_file, write_to_file, debug):
 
     logger.debug("dynamically collect users and roles")
     users = get_iam_users()
-    roles = get_iam_roles(user_landing_account, account_id)
+    roles = get_iam_roles(
+        user_landing_account=user_landing_account,
+        my_account=account_id,
+        include_system_roles=include_system_roles
+        )
 
     sources = []
     sources.extend(users)
@@ -90,7 +95,11 @@ def test_policies(number_of_runs, dry_run, config_file, write_to_file, debug):
             for e in exemptions:
                 if re.match(e, source):
                     exempt = True
-                    logger.debug(f"\nSource {source} is exempt from testing using exemption: {e}")
+                    if debug:
+                        logger.debug(f"\nSource {source} is exempt from testing using exemption: {e}")
+                    else:
+                        print(colored(f".", "blue"), end="")
+                        sys.stdout.flush()
                     break
             
             counter += 1
@@ -188,7 +197,7 @@ def read_config(config_file):
 
     return config, global_exemptions, user_landing_account
 
-def get_iam_roles(user_landing_account, my_account):
+def get_iam_roles(user_landing_account, my_account, include_system_roles):
     client = boto3.client('iam')
     roles = []
     paginator = client.get_paginator('list_roles')
@@ -202,10 +211,11 @@ def get_iam_roles(user_landing_account, my_account):
             if 'service-role' not in role["Path"] and ( # ignore service roles
                 f"arn:aws:iam::{my_account}:root" in policy_doc or # accept roles that can be assumed by users in my account
                 f"arn:aws:iam::{user_landing_account}:root" in policy_doc or # accept roles that can be assumed by a dedicated user landing account
-                f"arn:aws:iam::{my_account}:saml-provider" in policy_doc # accept roels that can be assumed with SAML
+                f"arn:aws:iam::{my_account}:saml-provider" in policy_doc or # accept roles that can be assumed with SAML
+                include_system_roles == True # do we want to include non user assumable roles
             ):
                 roles.append(role['Arn'])
-    
+
     return roles
 
 
