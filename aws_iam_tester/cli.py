@@ -208,7 +208,7 @@ def get_iam_roles(user_landing_account, my_account, include_system_roles):
             # only get the roles that can be assumed by 'users'
             policy_doc = json.dumps(role["AssumeRolePolicyDocument"])
 
-            if 'service-role' not in role["Path"] and ( # ignore service roles
+            if 'aws-service-role' not in role["Path"] and ( # ignore service roles
                 f"arn:aws:iam::{my_account}:root" in policy_doc or # accept roles that can be assumed by users in my account
                 f"arn:aws:iam::{user_landing_account}:root" in policy_doc or # accept roles that can be assumed by a dedicated user landing account
                 f"arn:aws:iam::{my_account}:saml-provider" in policy_doc or # accept roles that can be assumed with SAML
@@ -217,7 +217,6 @@ def get_iam_roles(user_landing_account, my_account, include_system_roles):
                 roles.append(role['Arn'])
 
     return roles
-
 
 def get_iam_users():
     client = boto3.client('iam')
