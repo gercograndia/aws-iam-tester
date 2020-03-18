@@ -35,46 +35,90 @@ tests:
 - actions: # list of actions to validate
   - "*:*"
   - iam:*
+  - iam:AddUser*
+  - iam:Attach*
   - iam:Create*
+  - iam:Delete*
+  - iam:Detach*
   - iam:Pass*
+  - iam:Put*
+  - iam:Remove*
+  - iam:UpdateAccountPasswordPolicy
   - sts:AssumeRole
   - sts:AssumeRoleWithSAML
   expected_result: fail # 'fail' or 'succeed'
   resources: # list of resources to validate against
   - "*"
   exemptions: [] # Additional exemptions (on top of the global excemptions) that will be ignored for this test
+- actions: # list of data centric actions
+  - redshift:GetClusterCredentials
+  - redshift:JoinGroup
+  - rds:Create*
+  - rds:Delete*
+  - rds:Modify*
+  - rds-db:connect
+  - s3:BypassGovernanceRetention
+  - s3:CreateBucket
+  - s3:DeleteBucket
+  - s3:DeleteBucketPolicy
+  - s3:PutBucketAcl
+  - s3:PutBucketPolicy
+  - s3:PutEncryptionConfiguration
+  - s3:ReplicateDelete
+  expected_result: fail # 'fail' or 'succeed'
+  resources: # list of resources to validate against
+  - "*"
+  exemptions: [
+  - "^arn:aws:iam::(\\d{12}):role/(.*)_worker$" # ignore this for the worker roles
+  ]
 ```
+
+However, if you want to run positive tests (i.e. tests that you need to succeed rather than fail), these `exemptions` don't work that well.
+
+In that case you can limit your tests to a set of roles and users:
+
+```yaml
+- actions:
+  - s3:PutObject
+  expected_result: succeed
+  resources:
+  - "arn:aws:s3:::my_bucket/xyz/*"
+  limit_to: # if you specify this, test will only be performed for the sources below
+  - "^arn:aws:iam::(\\d{12}):role/my_worker$"
+```
+
+> Note that the exemptions are ignored when using a `limit_to` list.
 
 ## How to use
 
 Assuming you have define a config.yml in your local directory, then to run and write the outputs to the local `./results` directory:
 
 ```bash
-aws-iam-tester --write-to-file
+aws_iam_tester --write-to-file
 ```
 
 Using a specific config file:
 
 ```bash
-aws-iam-tester --config-file my-config.yml
+aws_iam_tester --config-file my-config.yml
 ```
 
 Using a specific output location:
 
 ```bash
-aws-iam-tester --output-location /tmp
+aws_iam_tester --output-location /tmp
 ```
 
 Or write to s3:
 
 ```bash
-aws-iam-tester --output-location s3://my-bucket/my-prefix
+aws_iam_tester --output-location s3://my-bucket/my-prefix
 ```
 
 Include only roles that can be assumed by human beings:
 
 ```bash
-aws-iam-tester --no-include-system-roles
+aws_iam_tester --no-include-system-roles
 ```
 
 > Note: including system roles does NOT include the aws service roles.
@@ -82,13 +126,13 @@ aws-iam-tester --no-include-system-roles
 Or print debug output:
 
 ```bash
-aws-iam-tester --debug
+aws_iam_tester --debug
 ```
 
 To run a limited number of evaluations (which helps speeding things up, and avoiding API throttling issues):
 
 ```bash
-aws-iam-tester --number-of-runs 10
+aws_iam_tester --number-of-runs 10
 ```
 
-For more information, run `aws-iam-tester --help` for more instructions.
+For more information, run `aws_iam_tester --help` for more instructions.
