@@ -18,7 +18,7 @@ keywords = ["AWS",
 
 [tool.poetry.dependencies]
 python = "^3.7"
-boto3 = "1.12.22"
+boto3 = "^1.12.22"
 pyyaml = "^5.3"
 click = "^7.1.1"
 termcolor = "^1.1.0"
