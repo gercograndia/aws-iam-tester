@@ -1,0 +1,9 @@
+poetry
+
+# setup py dependencies
+boto3
+pyyaml
+click
+termcolor
+toml
+

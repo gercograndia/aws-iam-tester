@@ -15,13 +15,15 @@ import time
 from termcolor import colored
 from botocore.config import Config
 
+from aws_iam_tester import __version__
+
 # Defaults
 DEFAULT_SLEEP_SECONDS=60
 
 logger = None
 
 # define boto3 retry logic, as the simulation api might do some throttling
-config = Config(
+boto3_config = Config(
     retries = dict(
         max_attempts = 10
     )
@@ -34,11 +36,11 @@ config = Config(
 @click.option('--include-system-roles/--no-include-system-roles', '-sr/-nsr', help='Include non-user-assumable roles.', default=False)
 @click.option('--write-to-file/--no-write-to-file', '-w/-nw', help='Write results to file.', default=False)
 @click.option('--debug/--no-debug', '-d/-nd', help='Print debug messages.', default=False)
-def test_policies(number_of_runs, dry_run, config_file, include_system_roles, write_to_file, debug):
+@click.version_option(version=__version__)
+def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_file, debug):
     setup_logger(
         debug=debug,
         )
-
     # first get current account id
     client = boto3.client("sts")
     account_id = client.get_caller_identity()["Account"]
@@ -234,7 +236,7 @@ def get_iam_users():
 def simulate_policy(source, actions, resources):
     """Simulate a set of actions from a specific principal against a resource"""
     def simulate():
-        client = boto3.client("iam", config=config)
+        client = boto3.client("iam", config=boto3_config)
         response = client.simulate_principal_policy(
             PolicySourceArn=source,
             ActionNames=actions,
@@ -284,7 +286,8 @@ def construct_results(source, expect_failures, results, print_results=True):
             f"Must fail: {expect_failures}\n"
             f"Evaluated Action Name: {er['EvalActionName']}\n"
             f"\tEvaluated Resource name: {er['EvalResourceName']}\n"
-            f"\tDecision: {er['EvalDecision']}"
+            f"\tDecision: {er['EvalDecision']}\n"
+            f"\tMatched statements: {er['MatchedStatements']}"
         )
         r = {
             "source": source,
@@ -292,6 +295,7 @@ def construct_results(source, expect_failures, results, print_results=True):
             "must_fail": expect_failures,
             "resource": er['EvalResourceName'],
             "decision": er['EvalDecision'],
+            "matched_statements": er['MatchedStatements'],
         }
         response.append(r)
         output += message
@@ -328,4 +332,4 @@ def handle_results(results, write_to_file, account_id):
 
 
 if __name__ == "__main__":
-    test_policies()
+    main()
