@@ -59,10 +59,22 @@ Using a specific config file:
 aws-iam-tester --config-file my-config.yml
 ```
 
-Include roles that cannot be assumed by human beings:
+Using a specific output location:
 
 ```bash
-aws-iam-tester --include-system-roles
+aws-iam-tester --output-location /tmp
+```
+
+Or write to s3:
+
+```bash
+aws-iam-tester --output-location s3://my-bucket/my-prefix
+```
+
+Include only roles that can be assumed by human beings:
+
+```bash
+aws-iam-tester --no-include-system-roles
 ```
 
 > Note: including system roles does NOT include the aws service roles.

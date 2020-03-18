@@ -31,12 +31,12 @@ boto3_config = Config(
 
 @click.command()
 @click.option('--number-of-runs', '-n', help='Run only a limited number of simulations, and then abort.', type=int, default=-1)
-@click.option('--dry-run/--no-dry-run', '-dr/-ndr', help='Dry run mode will not run the actual policy simulations.', default=False)
-@click.option('--config-file', '-c', help='Config file, default config.yml.', default='config.yml')
-@click.option('--include-system-roles/--no-include-system-roles', '-sr/-nsr', help='Include non-user-assumable roles.', default=False)
-@click.option('--write-to-file/--no-write-to-file', '-w/-nw', help='Write results to file.', default=False)
-@click.option('--output-location', '-o', help='Output location, either s3 (start with s3://) or locally.', default='./results')
-@click.option('--debug/--no-debug', '-d/-nd', help='Print debug messages.', default=False)
+@click.option('--dry-run/--no-dry-run', '-dr/-ndr', help='Dry run mode will not run the actual policy simulations. Default: False', default=False)
+@click.option('--config-file', '-c', help='Config file location. Default: config.yml.', default='config.yml')
+@click.option('--include-system-roles/--no-include-system-roles', '-sr/-nsr', help='Include non-user-assumable roles. Default: True', default=True)
+@click.option('--write-to-file/--no-write-to-file', '-w/-nw', help='Write results to file. Default: False', default=False)
+@click.option('--output-location', '-o', help='Output location, either s3 (start with s3://) or locally. Default: ./results', default='./results')
+@click.option('--debug/--no-debug', '-d/-nd', help='Print debug messages. Default: False', default=False)
 @click.version_option(version=__version__)
 def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_file, output_location, debug):
     setup_logger(
@@ -60,10 +60,9 @@ def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_fi
     sources.extend(users)
     sources.extend(roles)
 
-    # # for testing
+    # for quick testing
     # sources = [
-    #     # "arn:aws:iam::325855013273:user/test-user-remove-after-20200401",
-    #     "arn:aws:iam::325855013273:role/SHARED_PLATFORM_ENGINEER_ROLE",
+    #     "arn:aws:iam::351902532037:role/powerbi_gateway",
     # ]
 
     results = []
@@ -169,6 +168,7 @@ def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_fi
     handle_results(
         results=results,
         write_to_file=write_to_file,
+        output_location=output_location,
         account_id=account_id,
     )
 
@@ -323,27 +323,64 @@ def construct_results(source, expect_failures, results, print_results=True):
     return response
 
 
-def handle_results(results, write_to_file, account_id):
+def handle_results(results, write_to_file, output_location, account_id):
     print("\n\n")
     logger.debug("Handle results")
-    if write_to_file:
-        # first ensure directory exists
-        try:
-            path = f"{os.getcwd()}/results"
-            os.makedirs(path)
-        except OSError as exc:
-            if exc.errno == errno.EEXIST and os.path.isdir(path):
+    if results and write_to_file:
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        filename = f'results-{account_id}-{timestr}.json'
+
+        # remove the trailing / if present
+        output_location = output_location.rstrip('/')
+
+        # do we need to write to s3?
+        if output_location.startswith('s3://'):
+            # parse the output location into bucket and key
+            bucket = output_location[5:].split("/")[0]
+            # do we have a prefix?
+            try:
+                prefix = output_location[5:].split("/", 1)[1]
+            except IndexError as ie:
+                prefix = ""
                 pass
-            else:
-                raise
-        try:
-            timestr = time.strftime("%Y%m%d-%H%M%S")
-            filename = f'{path}/results-{account_id}-{timestr}.json' 
-            with open(filename, 'w') as outfile:
-                json.dump(results, outfile, indent=4)
-            logger.info(f'Results for {len(results)} findings are written to {filename}')
-        finally:
-            outfile.close()
+            
+            try:
+                full_filename = f'{prefix}/{filename}'
+                logger.debug(f"Try to write results to s3://{bucket}/{full_filename}")
+                s3_client = boto3.client('s3')
+                s3_client.put_object(
+                    Body=json.dumps(results).encode(),
+                    Bucket=bucket,
+                    Key=full_filename,
+                )
+            except Exception as e:
+                logger.error(f"Could not write results to s3: {e}")
+        else:
+            # first ensure directory exists
+            try:
+                if os.path.isabs(output_location): # is output location absolute?
+                    path = output_location 
+                else:
+                    path = os.path.abspath(output_location)
+                os.makedirs(path)
+            except OSError as exc:
+                if exc.errno == errno.EEXIST and os.path.isdir(path):
+                    pass
+                else:
+                    raise
+            try:
+                full_filename = f'{path}/{filename}' 
+                logger.debug(f"Try to write results to local file system: {full_filename}")
+                with open(full_filename, 'w') as outfile:
+                    json.dump(results, outfile, indent=4)
+            except Exception as e:
+                logger.error(f"Could not write results to file system: {e}")
+            finally:
+                outfile.close()
+
+            logger.info(f'Results for {len(results)} findings are written to {full_filename}')
+    elif not results:
+        logger.info(colored("No findings found!", "green"))
     else:
         logger.info(f"Complete list with {len(results)} failures is printed below:\n")
         print(json.dumps(results, indent=4))
