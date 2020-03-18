@@ -35,9 +35,10 @@ boto3_config = Config(
 @click.option('--config-file', '-c', help='Config file, default config.yml.', default='config.yml')
 @click.option('--include-system-roles/--no-include-system-roles', '-sr/-nsr', help='Include non-user-assumable roles.', default=False)
 @click.option('--write-to-file/--no-write-to-file', '-w/-nw', help='Write results to file.', default=False)
+@click.option('--output-location', '-o', help='Output location, either s3 (start with s3://) or locally.', default='./results')
 @click.option('--debug/--no-debug', '-d/-nd', help='Print debug messages.', default=False)
 @click.version_option(version=__version__)
-def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_file, debug):
+def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_file, output_location, debug):
     setup_logger(
         debug=debug,
         )
@@ -83,6 +84,11 @@ def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_fi
             exemptions = c["exemptions"]
         exemptions.extend(global_exemptions)
 
+        # check if this test contain a 'limit_to' element
+        limit_to = []
+        if "limit_to" in c:
+            limit_to = c["limit_to"]
+
         # check if the expected result has the expected values
         expected_result = c["expected_result"].lower()
         if expected_result not in ['fail', 'succeed']:
@@ -92,17 +98,29 @@ def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_fi
         logger.debug(f"Run config for actions: {actions} with resources {resources}")
 
         for source in sources:
-            # check if the source is exempt from testing
-            exempt = False
-            for e in exemptions:
-                if re.match(e, source):
-                    exempt = True
-                    if debug:
-                        logger.debug(f"\nSource {source} is exempt from testing using exemption: {e}")
-                    else:
-                        print(colored(f".", "blue"), end="")
-                        sys.stdout.flush()
-                    break
+            if limit_to: # do we have a limit_to?
+                exempt = True
+                for l in limit_to:
+                    if re.match(l, source):
+                        exempt = False
+                        break
+
+                if exempt and debug:
+                    logger.debug(f"\nSource {source} is not included in whitelist")
+                elif exempt:
+                    print(colored(f".", "blue"), end="")
+                    sys.stdout.flush()
+            else: # or is this source exempt from testing
+                exempt = False
+                for e in exemptions:
+                    if re.match(e, source):
+                        exempt = True
+                        if debug:
+                            logger.debug(f"\nSource {source} is exempt from testing using exemption: {e}")
+                        else:
+                            print(colored(f".", "blue"), end="")
+                            sys.stdout.flush()
+                        break
             
             counter += 1
             if number_of_runs > 0 and counter > number_of_runs:
