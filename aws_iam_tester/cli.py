@@ -18,7 +18,7 @@ from botocore.config import Config
 from aws_iam_tester import __version__
 
 # Defaults
-DEFAULT_SLEEP_SECONDS=60
+DEFAULT_SLEEP_SECONDS=300
 
 logger = None
 
@@ -263,7 +263,6 @@ def get_iam_users():
 def simulate_policy(source, actions, resources):
     """Simulate a set of actions from a specific principal against a resource"""
     def simulate():
-        client = boto3.client("iam", config=boto3_config)
         response = client.simulate_principal_policy(
             PolicySourceArn=source,
             ActionNames=actions,
@@ -288,20 +287,24 @@ def simulate_policy(source, actions, resources):
         )
         return response["EvaluationResults"]
 
+    client = boto3.client("iam", config=boto3_config)
     try:
         return simulate()
-    except botocore.exceptions.ClientError as ce:
+    except client.exceptions.NoSuchEntityException as nsee:
+        logger.error(f"\nCould not find entity {source} during simulation, has it just been removed?\n{nsee}")
+        # but ignore it
+        pass
+        return None
+    except client.exceptions.ClientError as ce:
         if "throttling" in str(ce).lower():
-            logger.warn(colored("Throttling of API is requested. Sleep for 60 seconds and try again"), "blue")
+            logger.error(colored(f"\nThrottling of API is requested. Sleep for {DEFAULT_SLEEP_SECONDS} seconds and try again\n"), "blue")
             time.sleep(DEFAULT_SLEEP_SECONDS)
             return simulate()
         else:
             raise(ce)
-    except botocore.errorfactory.NoSuchEntityException as nsee:
-        logger.error(f"\nCould not find entity during simulation, has it just been removed? {nsee}")
-        # bug ignore it
-        pass
-        return None
+    except Exception as e:
+        logger.error(f"\nError simulating entity {source}\n{e}")
+        raise(e)
 
 def is_denied(evaluationResults):
     return evaluationResults["EvalDecision"] != "allowed"
