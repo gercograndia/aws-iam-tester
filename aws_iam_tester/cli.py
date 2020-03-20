@@ -43,8 +43,16 @@ def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_fi
         debug=debug,
         )
     # first get current account id
-    client = boto3.client("sts")
-    account_id = client.get_caller_identity()["Account"]
+    sts_client = boto3.client("sts")
+    account_id = sts_client.get_caller_identity()["Account"]
+
+    # try to get the friendly account name
+    iam_client = boto3.client("iam")
+    try:
+        account_alias = iam_client.list_account_aliases(MaxItems=1)["AccountAliases"][0]
+    except:
+        account_alias = account_id
+    
 
     config, global_exemptions, user_landing_account = read_config(config_file)
 
@@ -135,41 +143,42 @@ def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_fi
                     resources=resources,
                 )
 
-                denies = [x for x in evaluation_results if is_denied(x)]
-                allows = [x for x in evaluation_results if not is_denied(x)]
+                if evaluation_results:
+                    denies = [x for x in evaluation_results if is_denied(x)]
+                    allows = [x for x in evaluation_results if not is_denied(x)]
 
-                if expect_failures:
-                    # allows are failures
-                    failures = allows
-                else:
-                    # denies are failures
-                    failures = denies
-
-                success = (len(failures) == 0)
-
-                if success:
-                    if debug:
-                        logger.debug(colored(f"Success: {source}", "green"))
+                    if expect_failures:
+                        # allows are failures
+                        failures = allows
                     else:
-                        print(colored(f".", "green"), end="")
-                        sys.stdout.flush()
-                else:
-                    r = construct_results(
-                        source=source,
-                        expect_failures=expect_failures,
-                        results=failures,
-                        print_results=debug,
-                        )
-                    results.extend(r)
-                    if not debug:
-                        print(colored(f".", "red"), end="")
-                        sys.stdout.flush()
+                        # denies are failures
+                        failures = denies
+
+                    success = (len(failures) == 0)
+
+                    if success:
+                        if debug:
+                            logger.debug(colored(f"Success: {source}", "green"))
+                        else:
+                            print(colored(f".", "green"), end="")
+                            sys.stdout.flush()
+                    else:
+                        r = construct_results(
+                            source=source,
+                            expect_failures=expect_failures,
+                            results=failures,
+                            print_results=debug,
+                            )
+                        results.extend(r)
+                        if not debug:
+                            print(colored(f".", "red"), end="")
+                            sys.stdout.flush()
 
     handle_results(
         results=results,
         write_to_file=write_to_file,
         output_location=output_location,
-        account_id=account_id,
+        account=account_alias,
     )
 
 def setup_logger(debug):
@@ -288,7 +297,11 @@ def simulate_policy(source, actions, resources):
             return simulate()
         else:
             raise(ce)
-
+    except botocore.errorfactory.NoSuchEntityException as nsee:
+        logger.error(f"\nCould not find entity during simulation, has it just been removed? {nsee}")
+        # bug ignore it
+        pass
+        return None
 
 def is_denied(evaluationResults):
     return evaluationResults["EvalDecision"] != "allowed"
@@ -323,12 +336,12 @@ def construct_results(source, expect_failures, results, print_results=True):
     return response
 
 
-def handle_results(results, write_to_file, output_location, account_id):
+def handle_results(results, write_to_file, output_location, account):
     print("\n\n")
     logger.debug("Handle results")
     if results and write_to_file:
         timestr = time.strftime("%Y%m%d-%H%M%S")
-        filename = f'results-{account_id}-{timestr}.json'
+        filename = f'results-{account}-{timestr}.json'
 
         # remove the trailing / if present
         output_location = output_location.rstrip('/')
