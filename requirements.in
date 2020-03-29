@@ -1,4 +1,5 @@
 poetry
+tox
 
 # setup py dependencies
 boto3
