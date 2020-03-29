@@ -18,7 +18,6 @@ def run_command(command_list):
         stderr=subprocess.PIPE
     )
     stdout, stderr = process.communicate()
-    print(f"stdout: {stdout}")
     assert_that(stderr).is_not_none()
 
     return str(stdout), str(stderr)
