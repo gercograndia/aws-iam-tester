@@ -4,8 +4,8 @@ import os
 import sys
 import errno
 import json
-import boto3
-import botocore
+import boto3 # type: ignore
+import botocore # type: ignore
 import yaml
 import click
 import logging
@@ -13,14 +13,15 @@ import re
 import time
 
 from termcolor import colored
-from botocore.config import Config
+from botocore.config import Config # type: ignore
+from typing import Dict, List, Tuple, Optional, Any
 
 from aws_iam_tester import __version__
 
 # Defaults
 DEFAULT_SLEEP_SECONDS=300
 
-logger = None
+logger: logging.Logger
 
 # define boto3 retry logic, as the simulation api might do some throttling
 boto3_config = Config(
@@ -38,10 +39,20 @@ boto3_config = Config(
 @click.option('--output-location', '-o', help='Output location, either s3 (start with s3://) or locally. Default: ./results', default='./results')
 @click.option('--debug/--no-debug', '-d/-nd', help='Print debug messages. Default: False', default=False)
 @click.version_option(version=__version__)
-def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_file, output_location, debug):
-    setup_logger(
+def main(
+        number_of_runs: int,
+        dry_run: bool,
+        config_file: str,
+        include_system_roles: bool,
+        write_to_file: bool,
+        output_location: str,
+        debug: bool
+    ) -> None:
+
+    global logger
+    logger = setup_logger(
         debug=debug,
-        )
+    )
     # first get current account id
     sts_client = boto3.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]
@@ -53,7 +64,6 @@ def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_fi
     except:
         account_alias = account_id
     
-
     config, global_exemptions, user_landing_account = read_config(config_file)
 
     logger.debug("dynamically collect users and roles")
@@ -182,10 +192,9 @@ def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_fi
         account=account_alias,
     )
 
-def setup_logger(debug):
+def setup_logger(debug: bool) -> logging.Logger:
     # set up the logger
     # logger = logging.basicConfig()
-    global logger
     logger = logging.getLogger('iam-tester')
     logger.propagate = False
     if not logger.handlers:
@@ -201,8 +210,10 @@ def setup_logger(debug):
         )
         ch.setFormatter(formatter)
         logger.addHandler(ch)
+    
+    return logger
 
-def read_config(config_file):
+def read_config(config_file: str) -> Tuple[Dict, List[str], Optional[str]]:
     logger.debug(f"Read config file {config_file}")
 
     try:
@@ -227,7 +238,7 @@ def read_config(config_file):
 
     return config, global_exemptions, user_landing_account
 
-def get_iam_roles(user_landing_account, my_account, include_system_roles):
+def get_iam_roles(user_landing_account: Optional[str], my_account: str, include_system_roles: bool) -> List[str]:
     client = boto3.client('iam')
     roles = []
     paginator = client.get_paginator('list_roles')
@@ -248,7 +259,7 @@ def get_iam_roles(user_landing_account, my_account, include_system_roles):
 
     return roles
 
-def get_iam_users():
+def get_iam_users() -> List[str]:
     client = boto3.client('iam')
     users = []
     paginator = client.get_paginator('list_users')
@@ -261,7 +272,7 @@ def get_iam_users():
     return users
 
 
-def simulate_policy(source, actions, resources):
+def simulate_policy(source: str, actions: List[str], resources: List[str]) -> Any:
     """Simulate a set of actions from a specific principal against a resource"""
     def simulate():
         response = client.simulate_principal_policy(
@@ -307,11 +318,11 @@ def simulate_policy(source, actions, resources):
         logger.error(f"\nError simulating entity {source}\n{e}")
         raise(e)
 
-def is_denied(evaluationResults):
+def is_denied(evaluationResults: Any):
     return evaluationResults["EvalDecision"] != "allowed"
 
 
-def construct_results(source, expect_failures, results, print_results=True):
+def construct_results(source: str, expect_failures: bool, results: Any, print_results: bool=True):
     """Constructs a dict with the results of a simulation evaluation result"""
     output = ""
     response = []
