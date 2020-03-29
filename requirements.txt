@@ -4,7 +4,7 @@
 #
 #    pip-compile --output-file=requirements.txt requirements.in
 #
-attrs==19.3.0             # via jsonschema
+attrs==19.3.0             # via jsonschema, pytest
 boto3==1.12.22            # via -r requirements.in (line 4)
 botocore==1.15.22         # via boto3, s3transfer
 cachecontrol[filecache]==0.12.6  # via poetry
@@ -19,22 +19,28 @@ cryptography==2.8         # via secretstorage
 docutils==0.15.2          # via botocore
 html5lib==1.0.1           # via poetry
 idna==2.9                 # via requests
-importlib-metadata==1.1.3  # via jsonschema, keyring, poetry
+importlib-metadata==1.1.3  # via jsonschema, keyring, pluggy, poetry, pytest
 jeepney==0.4.3            # via secretstorage
 jmespath==0.9.5           # via boto3, botocore
 jsonschema==3.2.0         # via poetry
 keyring==20.0.1           # via poetry
 lockfile==0.12.2          # via cachecontrol
+more-itertools==8.2.0     # via pytest
 msgpack==1.0.0            # via cachecontrol
+packaging==20.3           # via pytest
 pastel==0.2.0             # via clikit
 pexpect==4.8.0            # via poetry
 pkginfo==1.5.0.1          # via poetry
+pluggy==0.13.1            # via pytest
 poetry==1.0.5             # via -r requirements.in (line 1)
 ptyprocess==0.6.0         # via pexpect
+py==1.8.1                 # via pytest
+pyassert==0.4.2           # via -r requirements.in (line 10)
 pycparser==2.20           # via cffi
 pylev==1.3.0              # via clikit
-pyparsing==2.4.6          # via poetry
+pyparsing==2.4.6          # via packaging, poetry
 pyrsistent==0.14.11       # via jsonschema, poetry
+pytest==5.4.1             # via -r requirements.in (line 9)
 python-dateutil==2.8.1    # via botocore
 pyyaml==5.3               # via -r requirements.in (line 5)
 requests-toolbelt==0.8.0  # via poetry
@@ -42,11 +48,12 @@ requests==2.23.0          # via cachecontrol, poetry, requests-toolbelt
 s3transfer==0.3.3         # via boto3
 secretstorage==3.1.2      # via keyring
 shellingham==1.3.2        # via poetry
-six==1.14.0               # via cryptography, html5lib, jsonschema, pyrsistent, python-dateutil
+six==1.14.0               # via cryptography, html5lib, jsonschema, packaging, pyassert, pyrsistent, python-dateutil
 termcolor==1.1.0          # via -r requirements.in (line 7)
 toml==0.10.0              # via -r requirements.in (line 8)
 tomlkit==0.5.11           # via poetry
 urllib3==1.25.8           # via botocore, requests
+wcwidth==0.1.9            # via pytest
 webencodings==0.5.1       # via html5lib
 zipp==3.1.0               # via importlib-metadata
 

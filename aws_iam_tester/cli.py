@@ -70,7 +70,8 @@ def main(number_of_runs, dry_run, config_file, include_system_roles, write_to_fi
 
     # for quick testing
     # sources = [
-    #     "arn:aws:iam::351902532037:role/powerbi_gateway",
+    #     "arn:aws:iam::149072226401:role/inl-dev-oracle-apex-ApexListenerIamRole-IIZZNB8NA90P"
+    #     # "arn:aws:iam::351902532037:role/powerbi_gateway",
     # ]
 
     results = []

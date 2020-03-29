@@ -26,6 +26,7 @@ toml = "^0.10.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^4.6"
+# pyassert = "*"
 
 [tool.poetry.scripts]
 aws_iam_tester = "aws_iam_tester.cli:main"

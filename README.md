@@ -136,3 +136,9 @@ aws_iam_tester --number-of-runs 10
 ```
 
 For more information, run `aws_iam_tester --help` for more instructions.
+
+## Unit testing
+
+`pytest` is being used for testing the various options.
+
+As long as the `aws_iam_tester` module is installed, you can run the [tests](./tests).

@@ -6,4 +6,5 @@ pyyaml
 click
 termcolor
 toml
-
+pytest
+pyassert

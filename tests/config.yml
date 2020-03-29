@@ -1,0 +1,61 @@
+---
+user_landing_account: 0123456789 # ID of AWS Account that is allowed to assume roles in the test account
+global_exemptions: # The roles and/or users below will be ignored in all tests. Regular expressions are supported
+- "^arn:aws:iam::(\\d*):user/(.*)(ADMIN|admin)(.*)$"
+- "^arn:aws:iam::(\\d*):role/(.*)(ADMIN|admin)(.*)$"
+- "^arn:aws:iam::(\\d*):role/OrganizationAccountAccessRole(.*)$"
+- "^arn:aws:iam::(\\d*):role/AWSCloudFormationStackSetExecutionRole$"
+# List of tests to execute. In general the configurations follow the rules of the AWS IAM Policy Simulator.
+# For more information: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_testing-policies.html
+tests: 
+- actions: # list of actions to validate
+  - "*:*"
+  - iam:*
+  - iam:AddUser*
+  - iam:Attach*
+  - iam:Create*
+  - iam:Delete*
+  - iam:Detach*
+  - iam:Pass*
+  - iam:Put*
+  - iam:Remove*
+  - iam:UpdateAccountPasswordPolicy
+  - sts:AssumeRole
+  - sts:AssumeRoleWithSAML
+  expected_result: fail # 'fail' or 'succeed'
+  resources: # list of resources to validate against
+  - "*"
+  exemptions: [] # Additional exemptions (on top of the global excemptions) that will be ignored for this test
+- actions:
+  - sts:AssumeRole
+  expected_result: fail
+  resources: []
+  exemptions: []
+- actions:
+  - ec2:Purchase*
+  - ec2:A*
+  - ec2:Create*
+  - ec2:Delete*
+  - ec2:Disassociate*
+  - ec2:Modify*
+  - ec2:Replace*
+  - redshift:GetClusterCredentials
+  - redshift:JoinGroup
+  - rds:Create*
+  - rds:Delete*
+  - rds:Modify*
+  - rds:Purchase*
+  - rds-db:connect
+  - savingsplan:Create*
+  - s3:BypassGovernanceRetention
+  - s3:CreateBucket
+  - s3:DeleteBucket
+  - s3:DeleteBucketPolicy
+  - s3:PutBucketAcl
+  - s3:PutBucketPolicy
+  - s3:PutEncryptionConfiguration
+  - s3:ReplicateDelete
+  expected_result: fail
+  resources:
+  - "*"
+  exemptions: []
