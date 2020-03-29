@@ -1,5 +1,6 @@
 poetry
 tox
+mypy
 
 # setup py dependencies
 boto3

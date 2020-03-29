@@ -272,7 +272,7 @@ def get_iam_users() -> List[str]:
     return users
 
 
-def simulate_policy(source: str, actions: List[str], resources: List[str]) -> Any:
+def simulate_policy(source: str, actions: List[str], resources: List[str]) -> Optional[Dict]:
     """Simulate a set of actions from a specific principal against a resource"""
     def simulate():
         response = client.simulate_principal_policy(
@@ -318,11 +318,11 @@ def simulate_policy(source: str, actions: List[str], resources: List[str]) -> An
         logger.error(f"\nError simulating entity {source}\n{e}")
         raise(e)
 
-def is_denied(evaluationResults: Any):
+def is_denied(evaluationResults: Dict) -> bool:
     return evaluationResults["EvalDecision"] != "allowed"
 
 
-def construct_results(source: str, expect_failures: bool, results: Any, print_results: bool=True):
+def construct_results(source: str, expect_failures: bool, results: Any, print_results: bool=True) -> List[Dict]:
     """Constructs a dict with the results of a simulation evaluation result"""
     output = ""
     response = []
@@ -351,7 +351,7 @@ def construct_results(source: str, expect_failures: bool, results: Any, print_re
     return response
 
 
-def handle_results(results, write_to_file, output_location, account):
+def handle_results(results: List[Dict], write_to_file: bool, output_location: str, account: str) -> None:
     print("\n\n")
     logger.debug("Handle results")
     if results and write_to_file:
