@@ -29,7 +29,7 @@ pytest = "^4.6"
 pyassert = "^0.4.2"
 
 [tool.poetry.scripts]
-aws_iam_tester = "aws_iam_tester.cli:main"
+aws-iam-tester = "aws_iam_tester.cli:main"
 
 [tool.poetry.urls]
 issues = "https://github.com/gercograndia/aws-iam-tester/issues"

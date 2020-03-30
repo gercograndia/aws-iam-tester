@@ -16,7 +16,7 @@ from termcolor import colored
 from botocore.config import Config # type: ignore
 from typing import Dict, List, Tuple, Optional, Any
 
-from aws_iam_tester import __version__
+from . import __version__
 
 # Defaults
 DEFAULT_SLEEP_SECONDS=300
@@ -303,7 +303,8 @@ def simulate_policy(source: str, actions: List[str], resources: List[str]) -> Op
     try:
         return simulate()
     except client.exceptions.NoSuchEntityException as nsee:
-        logger.error(f"\nCould not find entity {source} during simulation, has it just been removed?\n{nsee}")
+        print("\n")
+        logger.error(f"Could not find entity {source} during simulation, has it just been removed?\n{nsee}")
         # but ignore it
         pass
         return None
@@ -412,7 +413,3 @@ def handle_results(results: List[Dict], write_to_file: bool, output_location: st
     else:
         logger.info(f"Complete list with {len(results)} failures is printed below:\n")
         print(json.dumps(results, indent=4))
-
-
-if __name__ == "__main__":
-    main()

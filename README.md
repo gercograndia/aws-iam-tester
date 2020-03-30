@@ -94,31 +94,31 @@ In that case you can limit your tests to a set of roles and users:
 Assuming you have define a config.yml in your local directory, then to run and write the outputs to the local `./results` directory:
 
 ```bash
-aws_iam_tester --write-to-file
+aws-iam-tester --write-to-file
 ```
 
 Using a specific config file:
 
 ```bash
-aws_iam_tester --config-file my-config.yml
+aws-iam-tester --config-file my-config.yml
 ```
 
 Using a specific output location:
 
 ```bash
-aws_iam_tester --output-location /tmp
+aws-iam-tester --output-location /tmp
 ```
 
 Or write to s3:
 
 ```bash
-aws_iam_tester --output-location s3://my-bucket/my-prefix
+aws-iam-tester --output-location s3://my-bucket/my-prefix
 ```
 
 Include only roles that can be assumed by human beings:
 
 ```bash
-aws_iam_tester --no-include-system-roles
+aws-iam-tester --no-include-system-roles
 ```
 
 > Note: including system roles does NOT include the aws service roles.
@@ -126,19 +126,19 @@ aws_iam_tester --no-include-system-roles
 Or print debug output:
 
 ```bash
-aws_iam_tester --debug
+aws-iam-tester --debug
 ```
 
 To run a limited number of evaluations (which helps speeding things up, and avoiding API throttling issues):
 
 ```bash
-aws_iam_tester --number-of-runs 10
+aws-iam-tester --number-of-runs 10
 ```
 
-For more information, run `aws_iam_tester --help` for more instructions.
+For more information, run `aws-iam-tester --help` for more instructions.
 
 ## Unit testing
 
 `pytest` is being used for testing the various options.
 
-As long as the `aws_iam_tester` module is installed, you can run the [tests](./tests).
+As long as the `aws-iam-tester` module is installed, you can run the [tests](./tests).
