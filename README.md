@@ -20,7 +20,9 @@ The testing leverages AWS' [IAM simulator (api)](https://docs.aws.amazon.com/IAM
 
 In order to run, a configuration of the tests to run is required.
 
-A sample configuration (with only one test) is shown below.
+A sample configuration (with only one test) is shown, in various steps.
+
+First there is a global section where you define settings which are applied to all tests (unless overruled, more on that later).
 
 ```yaml
 ---
@@ -29,6 +31,14 @@ global_exemptions: # The roles and/or users below will be ignored in all tests. 
 - "^arn:aws:iam::(\\d{12}):user/(.*)(ADMIN|admin)(.*)$"
 - "^arn:aws:iam::(\\d{12}):role/(.*)(ADMIN|admin)(.*)$"
 - "^arn:aws:iam::(\\d{12}):role/AWSCloudFormationStackSetExecutionRole$"
+```
+
+Then you define a list of tests, each consisting at least of a set of:
+- actions
+- resources
+- the expected result (should it fail or succeed)
+
+```yaml
 # List of tests to execute. In general the configurations follow the rules of the AWS IAM Policy Simulator.
 # For more information: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_testing-policies.html
 tests: 
@@ -49,7 +59,43 @@ tests:
   expected_result: fail # 'fail' or 'succeed'
   resources: # list of resources to validate against
   - "*"
-  exemptions: [] # Additional exemptions (on top of the global excemptions) that will be ignored for this test
+```
+
+Rather than using all users and roles (without exemptions) you can also limit your test to a particular set of users and roles.
+
+The test below does that, including defining a custom context that specifies multi factor authentication is disabled when running the test. By default the context under which the simulations are run assumes MFA is enabled, but you can override that with the `custom_context` element. For more information see the [AWS documentation](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_testing-policies.html).
+
+```yaml
+- actions: # Same list of actions, but now check (with a custom context) whether
+  - "*:*"
+  - iam:*
+  - iam:AddUser*
+  - iam:Attach*
+  - iam:Create*
+  - iam:Delete*
+  - iam:Detach*
+  - iam:Pass*
+  - iam:Put*
+  - iam:Remove*
+  - iam:UpdateAccountPasswordPolicy
+  - sts:AssumeRole
+  - sts:AssumeRoleWithSAML
+  expected_result: fail # 'fail' or 'succeed'
+  resources: # list of resources to validate against
+  - "*"
+  limit_to: # check this list for the admin users
+  - "^arn:aws:iam::(\\d*):user/(.*)(ADMIN|admin)(.*)$"
+  - "^arn:aws:iam::(\\d*):role/(.*)(ADMIN|admin)(.*)$"
+  # test if the admins are required to use multi factor authentication
+  custom_context: 
+    - context_key_name: aws:MultiFactorAuthPresent
+      context_key_values: false
+      context_key_type: boolean
+```
+
+Below an example where an additional set of roles is exempt from testing:
+
+```yaml
 - actions: # list of data centric actions
   - redshift:GetClusterCredentials
   - redshift:JoinGroup
@@ -73,7 +119,7 @@ tests:
   ]
 ```
 
-However, if you want to run positive tests (i.e. tests that you need to succeed rather than fail), these `exemptions` don't work that well.
+If you want to run positive tests (i.e. tests that you need to succeed rather than fail), these `exemptions` don't work that well.
 
 In that case you can limit your tests to a set of roles and users:
 
@@ -142,3 +188,5 @@ For more information, run `aws-iam-tester --help` for more instructions.
 `pytest` is being used for testing the various options.
 
 As long as the `aws-iam-tester` module is installed, you can run the [tests](./tests).
+
+After installing `tox`, you can also simply run `$ tox`.

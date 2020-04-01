@@ -49,6 +49,27 @@ def main(
         debug: bool
     ) -> None:
 
+    def convert_context_dict(d: Dict) -> Dict:
+        result = {}
+        boolean_values = False
+        for key, value in d.items():
+            # convert key to CamelCase
+            if type(key) == str:
+                new_key = ''.join(x.capitalize() or '_' for x in key.split('_'))
+                result[new_key] = value
+
+                # the ContextKeyValues should be a list
+                if new_key == 'ContextKeyValues':
+                    result[new_key] = [value]
+            else:
+                result[key] = value
+
+        # convert boolean values to strings
+        if result['ContextKeyType'] == 'boolean':
+            result['ContextKeyValues'] = [str(x).lower() for x in result['ContextKeyValues']] 
+
+        return result        
+
     global logger
     logger = setup_logger(
         debug=debug,
@@ -115,6 +136,16 @@ def main(
         expect_failures = (expected_result == "fail")
         logger.debug(f"Run config for actions: {actions} with resources {resources}")
 
+        # check if we have a custom context
+        sim_context = None
+        if "custom_context" in c:
+            custom_context = c["custom_context"]
+            # the keys in the custom context need to be converted to CamelCase
+            sim_context = []
+            for cc in custom_context:
+                c_cc = convert_context_dict(cc)
+                sim_context.append(c_cc)
+
         for source in sources:
             if limit_to: # do we have a limit_to?
                 exempt = True
@@ -152,6 +183,7 @@ def main(
                     source=source,
                     actions=actions,
                     resources=resources,
+                    sim_context=sim_context,
                 )
 
                 if evaluation_results:
@@ -272,14 +304,12 @@ def get_iam_users() -> List[str]:
     return users
 
 
-def simulate_policy(source: str, actions: List[str], resources: List[str]) -> Optional[Dict]:
+def simulate_policy(source: str, actions: List[str], resources: List[str], sim_context: List[Dict]=None) -> Optional[Dict]:
     """Simulate a set of actions from a specific principal against a resource"""
-    def simulate():
-        response = client.simulate_principal_policy(
-            PolicySourceArn=source,
-            ActionNames=actions,
-            ResourceArns=resources,
-            ContextEntries=[
+    def simulate(source: str, actions: List[str], resources: List[str], sim_context: List[Dict]=None) -> Optional[Dict]:
+        # do we have a custom context to pass along?
+        if not sim_context:
+            sim_context = [
                 {
                     'ContextKeyName': 'aws:MultiFactorAuthPresent',
                     'ContextKeyValues': [
@@ -295,13 +325,19 @@ def simulate_policy(source: str, actions: List[str], resources: List[str]) -> Op
                     ],
                     'ContextKeyType': 'string',
                 },
-            ],
+            ]
+
+        response = client.simulate_principal_policy(
+            PolicySourceArn=source,
+            ActionNames=actions,
+            ResourceArns=resources,
+            ContextEntries=sim_context,
         )
         return response["EvaluationResults"]
 
     client = boto3.client("iam", config=boto3_config)
     try:
-        return simulate()
+        return simulate(source, actions, resources, sim_context)
     except client.exceptions.NoSuchEntityException as nsee:
         print("\n")
         logger.error(f"Could not find entity {source} during simulation, has it just been removed?\n{nsee}")
@@ -312,7 +348,7 @@ def simulate_policy(source: str, actions: List[str], resources: List[str]) -> Op
         if "throttling" in str(ce).lower():
             logger.error(colored(f"\nThrottling of API is requested. Sleep for {DEFAULT_SLEEP_SECONDS} seconds and try again\n"), "blue")
             time.sleep(DEFAULT_SLEEP_SECONDS)
-            return simulate()
+            return simulate(source, actions, resources, sim_context)
         else:
             raise(ce)
     except Exception as e:

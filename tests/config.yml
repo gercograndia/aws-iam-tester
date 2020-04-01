@@ -59,3 +59,13 @@ tests:
   resources:
   - "*"
   exemptions: []
+  # you can define a custom context which might be necessary to properly validate conditions in iam policies
+  # more info: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_testing-policies.html
+  custom_context: 
+    - context_key_name: aws:MultiFactorAuthPresent
+      context_key_values: true
+      context_key_type: boolean
+    - context_key_name: redshift:DbUser
+      context_key_values: root
+      context_key_type: string
+
