@@ -6,7 +6,7 @@
 #
 appdirs==1.4.3            # via virtualenv
 attrs==19.3.0             # via jsonschema, pytest
-boto3==1.12.22            # via -r requirements.in (line 6)
+boto3==1.12.22            # via -r requirements.in (line 7)
 botocore==1.15.22         # via boto3, s3transfer
 cachecontrol[filecache]==0.12.6  # via poetry
 cachy==0.3.0              # via poetry
@@ -14,7 +14,7 @@ certifi==2019.11.28       # via requests
 cffi==1.14.0              # via cryptography
 chardet==3.0.4            # via requests
 cleo==0.7.6               # via poetry
-click==7.1.1              # via -r requirements.in (line 8)
+click==7.1.1              # via -r requirements.in (line 9)
 clikit==0.4.2             # via cleo, poetry
 cryptography==2.8         # via secretstorage
 distlib==0.3.0            # via virtualenv
@@ -27,11 +27,13 @@ jeepney==0.4.3            # via secretstorage
 jmespath==0.9.5           # via boto3, botocore
 jsonschema==3.2.0         # via poetry
 keyring==20.0.1           # via poetry
+littleutils==0.2.2        # via outdated
 lockfile==0.12.2          # via cachecontrol
 more-itertools==8.2.0     # via pytest
 msgpack==1.0.0            # via cachecontrol
 mypy-extensions==0.4.3    # via mypy
 mypy==0.770               # via -r requirements.in (line 3)
+outdated==0.2.0           # via -r requirements.in (line 14)
 packaging==20.3           # via pytest, tox
 pastel==0.2.0             # via clikit
 pexpect==4.8.0            # via poetry
@@ -40,22 +42,22 @@ pluggy==0.13.1            # via pytest, tox
 poetry==1.0.5             # via -r requirements.in (line 1)
 ptyprocess==0.6.0         # via pexpect
 py==1.8.1                 # via pytest, tox
-pyassert==0.4.2           # via -r requirements.in (line 12)
+pyassert==0.4.2           # via -r requirements.in (line 13)
 pycparser==2.20           # via cffi
 pylev==1.3.0              # via clikit
 pyparsing==2.4.6          # via packaging, poetry
 pyrsistent==0.14.11       # via jsonschema, poetry
-pytest==5.4.1             # via -r requirements.in (line 11)
+pytest==5.4.1             # via -r requirements.in (line 12)
 python-dateutil==2.8.1    # via botocore
-pyyaml==5.3               # via -r requirements.in (line 7)
+pyyaml==5.3               # via -r requirements.in (line 8)
 requests-toolbelt==0.8.0  # via poetry
-requests==2.23.0          # via cachecontrol, poetry, requests-toolbelt
+requests==2.23.0          # via -r requirements.in (line 4), cachecontrol, outdated, poetry, requests-toolbelt
 s3transfer==0.3.3         # via boto3
 secretstorage==3.1.2      # via keyring
 shellingham==1.3.2        # via poetry
 six==1.14.0               # via cryptography, html5lib, jsonschema, packaging, pyassert, pyrsistent, python-dateutil, tox, virtualenv
-termcolor==1.1.0          # via -r requirements.in (line 9)
-toml==0.10.0              # via -r requirements.in (line 10), tox
+termcolor==1.1.0          # via -r requirements.in (line 10)
+toml==0.10.0              # via -r requirements.in (line 11), tox
 tomlkit==0.5.11           # via poetry
 tox==3.14.6               # via -r requirements.in (line 2)
 typed-ast==1.4.1          # via mypy

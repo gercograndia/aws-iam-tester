@@ -26,6 +26,32 @@ tests:
   resources: # list of resources to validate against
   - "*"
   exemptions: [] # Additional exemptions (on top of the global excemptions) that will be ignored for this test
+- actions: 
+  - "*:*"
+  - iam:*
+  - iam:AddUser*
+  - iam:Attach*
+  - iam:Create*
+  - iam:Delete*
+  - iam:Detach*
+  - iam:Pass*
+  - iam:Put*
+  - iam:Remove*
+  - iam:UpdateAccountPasswordPolicy
+  - sts:AssumeRole
+  - sts:AssumeRoleWithSAML
+  expected_result: fail # 'fail' or 'succeed'
+  resources: # list of resources to validate against
+  - "*"
+  limit_to: # check only against admin users and roles
+  - "^arn:aws:iam::(\\d*):user/(.*)(ADMIN|admin)(.*)$"
+  - "^arn:aws:iam::(\\d*):role/(.*)(ADMIN|admin)(.*)$"
+  # disable MFA using a custom contex
+  # more info: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_testing-policies.html
+  custom_context: 
+    - context_key_name: aws:MultiFactorAuthPresent
+      context_key_values: false
+      context_key_type: boolean
 - actions:
   - sts:AssumeRole
   expected_result: fail
@@ -59,13 +85,3 @@ tests:
   resources:
   - "*"
   exemptions: []
-  # you can define a custom context which might be necessary to properly validate conditions in iam policies
-  # more info: https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_testing-policies.html
-  custom_context: 
-    - context_key_name: aws:MultiFactorAuthPresent
-      context_key_values: true
-      context_key_type: boolean
-    - context_key_name: redshift:DbUser
-      context_key_values: root
-      context_key_type: string
-

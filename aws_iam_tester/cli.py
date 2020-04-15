@@ -15,6 +15,7 @@ import time
 from termcolor import colored
 from botocore.config import Config # type: ignore
 from typing import Dict, List, Tuple, Optional, Any
+from outdated import check_outdated # type: ignore
 
 from . import __version__
 
@@ -74,6 +75,14 @@ def main(
     logger = setup_logger(
         debug=debug,
     )
+
+    # check for newer versions
+    is_outdated, latest_version = check_outdated('aws-iam-tester', __version__)
+    if is_outdated:
+        click.echo('\n' + ('* ' * 43))
+        click.echo(f'* Your local version is out of date! Your version is {__version__}, the latest is {latest_version} *')
+        click.echo('* ' * 43)    
+
     # first get current account id
     sts_client = boto3.client("sts")
     account_id = sts_client.get_caller_identity()["Account"]

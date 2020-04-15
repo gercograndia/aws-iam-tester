@@ -1,6 +1,7 @@
 poetry
 tox
 mypy
+requests
 
 # setup py dependencies
 boto3
@@ -10,3 +11,4 @@ termcolor
 toml
 pytest
 pyassert
+outdated
