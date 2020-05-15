@@ -93,6 +93,16 @@ The test below does that, including defining a custom context that specifies mul
       context_key_type: boolean
 ```
 
+Or if you want to do that for **all** tests you can use the `global_limit_to`:
+
+```yaml
+---
+user_landing_account: 0123456789 # ID of AWS Account that is allowed to assume roles in the test account
+global_limit_to: # These roles and/or users below will be u. Regular expressions are supported
+- "^arn:aws:iam::(\\d{12}):user/(.*)(ENGINEER|engineer)(.*)$"
+- "^arn:aws:iam::(\\d{12}):role/(.*)(SCIENTIST|scientist)(.*)$"
+```
+
 Below an example where an additional set of roles is exempt from testing:
 
 ```yaml

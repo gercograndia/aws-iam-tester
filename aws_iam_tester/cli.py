@@ -94,7 +94,7 @@ def main(
     except:
         account_alias = account_id
     
-    config, global_exemptions, user_landing_account = read_config(config_file)
+    config, global_exemptions, global_limit_to, user_landing_account = read_config(config_file)
 
     logger.debug("dynamically collect users and roles")
     users = get_iam_users()
@@ -107,6 +107,16 @@ def main(
     sources = []
     sources.extend(users)
     sources.extend(roles)
+
+    # If we have a global_limit_to, reduce the full set of sources to only that in order to improve performance
+    if global_limit_to:
+        filtered_sources = []
+        for lt in global_limit_to:
+            f = re.compile(lt)
+            fl = [ s for s in sources if f.match(s) ]
+            filtered_sources.extend(fl)
+        # Now remove duplicates
+        sources = list(set(filtered_sources))
 
     # for quick testing
     # sources = [
@@ -254,7 +264,7 @@ def setup_logger(debug: bool) -> logging.Logger:
     
     return logger
 
-def read_config(config_file: str) -> Tuple[Dict, List[str], Optional[str]]:
+def read_config(config_file: str) -> Tuple[Dict, List[str], List[str], Optional[str]]:
     logger.debug(f"Read config file {config_file}")
 
     try:
@@ -273,11 +283,15 @@ def read_config(config_file: str) -> Tuple[Dict, List[str], Optional[str]]:
     if "global_exemptions" in config:
         global_exemptions = config["global_exemptions"]
 
+    global_limit_to = []
+    if "global_limit_to" in config:
+        global_limit_to = config["global_limit_to"]
+
     user_landing_account = None
     if "user_landing_account" in config:
         user_landing_account = config["user_landing_account"]
 
-    return config, global_exemptions, user_landing_account
+    return config, global_exemptions, global_limit_to, user_landing_account
 
 def get_iam_roles(user_landing_account: Optional[str], my_account: str, include_system_roles: bool) -> List[str]:
     client = boto3.client('iam')
