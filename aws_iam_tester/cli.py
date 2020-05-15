@@ -118,6 +118,16 @@ def main(
         # Now remove duplicates
         sources = list(set(filtered_sources))
 
+    # If we have a global_exemptions, remove these from the sources as well
+    if global_exemptions:
+        exempt_sources = []
+        for lt in global_exemptions:
+            f = re.compile(lt)
+            fl = [ s for s in sources if f.match(s) ]
+            exempt_sources.extend(fl)
+        # Now remove duplicates and subtract from sources list
+        sources = list(set(sources) - set(exempt_sources))
+
     # for quick testing
     # sources = [
     #     "arn:aws:iam::149072226401:role/inl-dev-oracle-apex-ApexListenerIamRole-IIZZNB8NA90P"
@@ -140,7 +150,6 @@ def main(
         exemptions = []
         if "exemptions" in c:
             exemptions = c["exemptions"]
-        exemptions.extend(global_exemptions)
 
         # check if this test contain a 'limit_to' element
         limit_to = []
