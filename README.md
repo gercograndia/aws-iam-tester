@@ -4,9 +4,9 @@
 
 AWS IAM policies are notouriously complex, it is too easy to add some unintended permissions and it is surprisingly difficult to identify these in heavily used AWS accounts.
 
-Even more surprisingly I couldn't find a ready-to-use utility that I could leverage.
+Thankfully AWS has provided an [IAM simulator](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_testing-policies.html) that allows you to evaluate existing or new policies for its behavior. Which is very nice, but doing this manually is quite time consuming and it is unrealistic to test the entire environment for what you are trying to do.
 
-Hence I created one myself.
+However, in good AWS spirit the simulator has an API and this tool provides automation on top of it. It allows you to define the complete list of actions you want to evaluate against what resources, which allows you to run these tests on a regular basis or (better) integrate it in your CI/CD pipeline.
 
 ## Testing approach
 
