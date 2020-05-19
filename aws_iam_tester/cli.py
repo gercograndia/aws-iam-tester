@@ -56,7 +56,7 @@ boto3_config = Config(
     default=-1
     )
 @click.option(
-    '--dry-run', '-dr',
+    '--dry-run', '-D',
     help='Dry run mode will not run the actual policy simulations. Default: False',
     is_flag=True,
     default=False
@@ -67,7 +67,7 @@ boto3_config = Config(
     default='config.yml'
     )
 @click.option(
-    '--include-system-roles/--no-include-system-roles', '-sr/-nsr',
+    '--include-system-roles', '-i',
     help='Include non-user-assumable system roles. Default: True',
     is_flag=True,
     default=True
