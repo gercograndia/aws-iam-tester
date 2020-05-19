@@ -52,11 +52,13 @@ boto3_config = Config(
 @click.option(
     '--number-of-runs', '-n',
     help='Run only a limited number of simulations, and then abort.',
-    type=int, default=-1
+    type=int,
+    default=-1
     )
 @click.option(
-    '--dry-run/--no-dry-run', '-dr/-ndr',
+    '--dry-run', '-dr',
     help='Dry run mode will not run the actual policy simulations. Default: False',
+    is_flag=True,
     default=False
     )
 @click.option(
@@ -66,12 +68,14 @@ boto3_config = Config(
     )
 @click.option(
     '--include-system-roles/--no-include-system-roles', '-sr/-nsr',
-    help='Include non-user-assumable roles. Default: True',
+    help='Include non-user-assumable system roles. Default: True',
+    is_flag=True,
     default=True
     )
 @click.option(
-    '--write-to-file/--no-write-to-file', '-w/-nw',
-    help='Write results to file. Default: False',
+    '--write-to-file', '-w',
+    help='Write results to file.',
+    is_flag=True,
     default=False
     )
 @click.option(
@@ -80,8 +84,9 @@ boto3_config = Config(
     default='./results'
     )
 @click.option(
-    '--debug/--no-debug', '-d/-nd',
-    help='Print debug messages. Default: False',
+    '--debug', '-d',
+    help='Print debug messages.',
+    is_flag=True,
     default=False
     )
 @click.version_option(version=__version__)
@@ -122,11 +127,16 @@ def main(
     )
 
     # check for newer versions
-    is_outdated, latest_version = check_outdated('aws-iam-tester', __version__)
-    if is_outdated:
-        click.echo(
-            f'Your local version ({__version__}) is out of date! Latest is {latest_version}!'
-        )
+    try:
+        is_outdated, latest_version = check_outdated('aws-iam-tester', __version__)
+        if is_outdated:
+            click.echo(
+                f'Your local version ({__version__}) is out of date! Latest is {latest_version}!'
+            )
+    except ValueError:
+        # this happens when your local version is ahead of the pypi version,
+        # which happens only in development
+        pass
 
     # first get current account id
     sts_client = boto3.client("sts")
