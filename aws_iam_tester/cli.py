@@ -15,7 +15,7 @@ against what resources, which allows you to run these tests on a regular basis o
 integrate it in your CI/CD pipeline.
 """
 
-# pylint: disable=C0103,E0401,R0912,R0913,R0914,R0915,R1702,W0603,W1203
+# pylint: disable=broad-except,C0103,E0401,R0912,R0913,R0914,R0915,R1702,W0603,W1203
 
 import os
 import sys
@@ -99,7 +99,14 @@ def main(
         output_location: str,
         debug: bool
     ) -> None:
-    "Run the IAM policy tests"
+    """
+    Run the IAM policy tests. 
+
+    Based on the findings the following return values will be generated:
+     0: Upon successful completion with NO findings
+    -1: Upon successful completion with findings
+     1: Upon failures
+    """
 
     def convert_context_dict(my_dict: Dict) -> Dict:
         result = {}
@@ -138,182 +145,187 @@ def main(
         # which happens only in development
         pass
 
-    # first get current account id
-    sts_client = boto3.client("sts")
-    account_id = sts_client.get_caller_identity()["Account"]
-
-    # try to get the friendly account name
-    iam_client = boto3.client("iam")
     try:
-        account_alias = iam_client.list_account_aliases(MaxItems=1)["AccountAliases"][0]
-    except (KeyError, IndexError):
-        account_alias = account_id
+        # first get current account id
+        sts_client = boto3.client("sts")
+        account_id = sts_client.get_caller_identity()["Account"]
 
-    config, global_exemptions, global_limit_to, user_landing_account = read_config(config_file)
+        # try to get the friendly account name
+        iam_client = boto3.client("iam")
+        try:
+            account_alias = iam_client.list_account_aliases(MaxItems=1)["AccountAliases"][0]
+        except (KeyError, IndexError):
+            account_alias = account_id
 
-    logger.debug("dynamically collect users and roles")
-    users = get_iam_users()
-    roles = get_iam_roles(
-        user_landing_account=user_landing_account,
-        my_account=account_id,
-        include_system_roles=include_system_roles
-        )
+        config, global_exemptions, global_limit_to, user_landing_account = read_config(config_file)
 
-    sources = []
-    sources.extend(users)
-    sources.extend(roles)
-    len_1 = len(sources)
-
-    # If we have a global_limit_to, reduce the full set of sources
-    # to only that in order to improve performance
-    if global_limit_to:
-        filtered_sources = []
-        for limit in global_limit_to:
-            compiled = re.compile(limit)
-            filtered_list = [s for s in sources if compiled.match(s)]
-            filtered_sources.extend(filtered_list)
-        # Now remove duplicates
-        sources = list(set(filtered_sources))
-        logger.debug(f"Number of sources limited from {len_1} to {len(sources)}")
-
-    # If we have a global_exemptions, remove these from the sources as well
-    if global_exemptions:
-        exempt_sources = []
-        for limit in global_exemptions:
-            compiled = re.compile(limit)
-            filtered_list = [s for s in sources if compiled.match(s)]
-            exempt_sources.extend(filtered_list)
-        # Now remove duplicates and subtract from sources list
-        sources = list(set(sources) - set(exempt_sources))
-        logger.debug(f"Number of sources  reduced with exemptions from {len_1} to {len(sources)}")
-
-    # for quick testing
-    # sources = [
-    #     "arn:aws:iam::149072226401:role/inl-dev-oracle-apex-ApexListenerIamRole-IIZZNB8NA90P"
-    #     # "arn:aws:iam::351902532037:role/powerbi_gateway",
-    # ]
-
-    results = []
-
-    counter = 0
-    logger.debug("Start checking the configs")
-    for cfg in config['tests']:
-        # do we need to break?
-        if 0 < number_of_runs < counter:
-            break
-
-        actions = cfg["actions"]
-        resources = [x.format(account_id=account_id) for x in cfg["resources"]]
-
-        # create a full list of exemptions
-        exemptions = []
-        if "exemptions" in cfg:
-            exemptions = cfg["exemptions"]
-
-        # check if this test contain a 'limit_to' element
-        limit_to = []
-        if "limit_to" in cfg:
-            limit_to = cfg["limit_to"]
-
-        # check if the expected result has the expected values
-        expected_result = cfg["expected_result"].lower()
-        if expected_result not in ['fail', 'succeed']:
-            raise ValueError(
-                f"The expected result should be 'fail' or 'succeed'. It is now '{expected_result}'"
+        logger.debug("dynamically collect users and roles")
+        users = get_iam_users()
+        roles = get_iam_roles(
+            user_landing_account=user_landing_account,
+            my_account=account_id,
+            include_system_roles=include_system_roles
             )
 
-        expect_failures = (expected_result == "fail")
-        logger.debug(f"Run config for actions: {actions} with resources {resources}")
+        sources = []
+        sources.extend(users)
+        sources.extend(roles)
+        len_1 = len(sources)
 
-        # check if we have a custom context
-        sim_context = None
-        if "custom_context" in cfg:
-            custom_context = cfg["custom_context"]
-            # the keys in the custom context need to be converted to CamelCase
-            sim_context = []
-            for ctx in custom_context:
-                c_ctx = convert_context_dict(ctx)
-                sim_context.append(c_ctx)
+        # If we have a global_limit_to, reduce the full set of sources
+        # to only that in order to improve performance
+        if global_limit_to:
+            filtered_sources = []
+            for limit in global_limit_to:
+                compiled = re.compile(limit)
+                filtered_list = [s for s in sources if compiled.match(s)]
+                filtered_sources.extend(filtered_list)
+            # Now remove duplicates
+            sources = list(set(filtered_sources))
+            logger.debug(f"Number of sources limited from {len_1} to {len(sources)}")
 
-        for source in sources:
-            if limit_to: # do we have a limit_to?
-                exempt = True
-                for limit in limit_to:
-                    if re.match(limit, source):
-                        exempt = False
-                        break
+        # If we have a global_exemptions, remove these from the sources as well
+        if global_exemptions:
+            exempt_sources = []
+            for limit in global_exemptions:
+                compiled = re.compile(limit)
+                filtered_list = [s for s in sources if compiled.match(s)]
+                exempt_sources.extend(filtered_list)
+            # Now remove duplicates and subtract from sources list
+            sources = list(set(sources) - set(exempt_sources))
+            logger.debug(f"Number of sources  reduced with exemptions from {len_1} to {len(sources)}")
 
-                if exempt and debug:
-                    logger.debug(f"\nSource {source} is not included in whitelist")
-                elif exempt:
-                    print(colored(".", "blue"), end="")
-                    sys.stdout.flush()
-            else: # or is this source exempt from testing
-                exempt = False
-                for exemption in exemptions:
-                    if re.match(exemption, source):
-                        exempt = True
-                        if debug:
-                            logger.debug(
-                                f"\nSource {source} is exempt from testing using: {exempt}"
-                            )
-                        else:
-                            print(colored(".", "blue"), end="")
-                            sys.stdout.flush()
-                        break
+        # for quick testing
+        # sources = [
+        #     "arn:aws:iam::149072226401:role/inl-dev-oracle-apex-ApexListenerIamRole-IIZZNB8NA90P"
+        #     # "arn:aws:iam::351902532037:role/powerbi_gateway",
+        # ]
 
-            counter += 1
+        results = []
+
+        counter = 0
+        logger.debug("Start checking the configs")
+        for cfg in config['tests']:
+            # do we need to break?
             if 0 < number_of_runs < counter:
-                print("\n")
-                logger.debug("Test run mode activated, max iterations reached.")
                 break
-            if dry_run:
-                logger.debug(f"Dry run mode, no simulation for {source}")
-            elif not exempt:
-                evaluation_results = simulate_policy(
-                    source=source,
-                    actions=actions,
-                    resources=resources,
-                    sim_context=sim_context,
+
+            actions = cfg["actions"]
+            resources = [x.format(account_id=account_id) for x in cfg["resources"]]
+
+            # create a full list of exemptions
+            exemptions = []
+            if "exemptions" in cfg:
+                exemptions = cfg["exemptions"]
+
+            # check if this test contain a 'limit_to' element
+            limit_to = []
+            if "limit_to" in cfg:
+                limit_to = cfg["limit_to"]
+
+            # check if the expected result has the expected values
+            expected_result = cfg["expected_result"].lower()
+            if expected_result not in ['fail', 'succeed']:
+                raise ValueError(
+                    f"The expected result should be 'fail' or 'succeed'. It is now '{expected_result}'"
                 )
 
-                if evaluation_results:
-                    denies = [x for x in evaluation_results if is_denied(x)]
-                    allows = [x for x in evaluation_results if not is_denied(x)]
+            expect_failures = (expected_result == "fail")
+            logger.debug(f"Run config for actions: {actions} with resources {resources}")
 
-                    if expect_failures:
-                        # allows are failures
-                        failures = allows
-                    else:
-                        # denies are failures
-                        failures = denies
+            # check if we have a custom context
+            sim_context = None
+            if "custom_context" in cfg:
+                custom_context = cfg["custom_context"]
+                # the keys in the custom context need to be converted to CamelCase
+                sim_context = []
+                for ctx in custom_context:
+                    c_ctx = convert_context_dict(ctx)
+                    sim_context.append(c_ctx)
 
-                    success = (len(failures) == 0)
+            for source in sources:
+                if limit_to: # do we have a limit_to?
+                    exempt = True
+                    for limit in limit_to:
+                        if re.match(limit, source):
+                            exempt = False
+                            break
 
-                    if success:
-                        if debug:
-                            logger.debug(colored(f"Success: {source}", "green"))
+                    if exempt and debug:
+                        logger.debug(f"\nSource {source} is not included in whitelist")
+                    elif exempt:
+                        print(colored(".", "blue"), end="")
+                        sys.stdout.flush()
+                else: # or is this source exempt from testing
+                    exempt = False
+                    for exemption in exemptions:
+                        if re.match(exemption, source):
+                            exempt = True
+                            if debug:
+                                logger.debug(
+                                    f"\nSource {source} is exempt from testing using: {exempt}"
+                                )
+                            else:
+                                print(colored(".", "blue"), end="")
+                                sys.stdout.flush()
+                            break
+
+                counter += 1
+                if 0 < number_of_runs < counter:
+                    print("\n")
+                    logger.debug("Test run mode activated, max iterations reached.")
+                    break
+                if dry_run:
+                    logger.debug(f"Dry run mode, no simulation for {source}")
+                elif not exempt:
+                    evaluation_results = simulate_policy(
+                        source=source,
+                        actions=actions,
+                        resources=resources,
+                        sim_context=sim_context,
+                    )
+
+                    if evaluation_results:
+                        denies = [x for x in evaluation_results if is_denied(x)]
+                        allows = [x for x in evaluation_results if not is_denied(x)]
+
+                        if expect_failures:
+                            # allows are failures
+                            failures = allows
                         else:
-                            print(colored(".", "green"), end="")
-                            sys.stdout.flush()
-                    else:
-                        res = construct_results(
-                            source=source,
-                            expect_failures=expect_failures,
-                            results=failures,
-                            print_results=debug,
-                            )
-                        results.extend(res)
-                        if not debug:
-                            print(colored(".", "red"), end="")
-                            sys.stdout.flush()
+                            # denies are failures
+                            failures = denies
 
-    handle_results(
-        results=results,
-        write_to_file=write_to_file,
-        output_location=output_location,
-        account=account_alias,
-    )
+                        success = (len(failures) == 0)
+
+                        if success:
+                            if debug:
+                                logger.debug(colored(f"Success: {source}", "green"))
+                            else:
+                                print(colored(".", "green"), end="")
+                                sys.stdout.flush()
+                        else:
+                            res = construct_results(
+                                source=source,
+                                expect_failures=expect_failures,
+                                results=failures,
+                                print_results=debug,
+                                )
+                            results.extend(res)
+                            if not debug:
+                                print(colored(".", "red"), end="")
+                                sys.stdout.flush()
+
+        return_value = handle_results(
+            results=results,
+            write_to_file=write_to_file,
+            output_location=output_location,
+            account=account_alias,
+        )
+        sys.exit(return_value)
+    except Exception as e:
+        logger.exception(e)
+        sys.exit(1)
 
 def setup_logger(debug: bool) -> logging.Logger:
     "Set up the logger"
@@ -521,10 +533,11 @@ def handle_results(
         write_to_file: bool,
         output_location: str,
         account: str
-    ) -> None:
+    ) -> int:
     "Print the results or write them to file"
     print("\n\n")
     logger.debug("Handle results")
+    return_value = -1
     if results and write_to_file:
         timestr = time.strftime("%Y%m%d-%H%M%S")
         filename = f'results-{account}-{timestr}.json'
@@ -579,6 +592,9 @@ def handle_results(
             logger.info(f'Results for {len(results)} findings are written to {full_filename}')
     elif not results:
         logger.info(colored("No findings found!", "green"))
+        return_value = 0
     else:
         logger.info(f"Complete list with {len(results)} failures is printed below:\n")
         print(json.dumps(results, indent=4))
+    
+    return return_value
