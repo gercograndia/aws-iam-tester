@@ -67,5 +67,6 @@ def test_full_run_with_global_limit():
     stdout, stderr = run_command(
         ['aws-iam-tester', '--config-file', f'{script_path}/config_with_global_limit_to.yml', '--write-to-file', '--output-location', output_dir],
     )
-    assert_that(stdout).contains("are written to")
+    assert_that(stdout).matches(r"(^(.)*are written to(.)*$)|(^(.)*No findings found(.)*$)")
+    
     assert_that(output_dir).is_a_directory()
