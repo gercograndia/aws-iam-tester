@@ -1,14 +1,3 @@
 poetry
 tox
 mypy
-requests
-
-# setup py dependencies
-boto3
-pyyaml
-click
-termcolor
-toml
-pytest
-pyassert
-outdated
