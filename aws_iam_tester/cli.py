@@ -24,14 +24,13 @@ import json
 import logging
 import re
 import time
-from typing import Dict, List, Tuple, Optional, Any
-
-import click
 import yaml
+import click
 import boto3 # type: ignore
+import botocore # type: ignore
 
+from typing import Dict, List, Tuple, Optional, Any
 from termcolor import colored
-from botocore.config import Config # type: ignore
 from outdated import check_outdated # type: ignore
 
 from . import __version__
@@ -42,7 +41,7 @@ DEFAULT_SLEEP_SECONDS = 300
 logger: logging.Logger
 
 # define boto3 retry logic, as the simulation api might do some throttling
-boto3_config = Config(
+boto3_config = botocore.config.Config(
     retries=dict(
         max_attempts=10
     )
@@ -98,9 +97,9 @@ def main(
         write_to_file: bool,
         output_location: str,
         debug: bool
-    ) -> None:
+    ) -> int:
     """
-    Run the IAM policy tests. 
+    Run the IAM policy tests.
 
     Based on the findings the following return values will be generated:
      0: Upon successful completion with NO findings
@@ -147,8 +146,15 @@ def main(
 
     try:
         # first get current account id
-        sts_client = boto3.client("sts")
-        account_id = sts_client.get_caller_identity()["Account"]
+        try:
+            sts_client = boto3.client("sts")
+            account_id = sts_client.get_caller_identity()["Account"]
+        except botocore.exceptions.ClientError as ce:
+            if re.match("^(.*)(security token|AccessDenied)(.*)$", str(ce)):
+                print(f"Please make sure you are logged in into AWS, with sufficient permissions. (Exception: {str(ce)})")
+            else:
+                logger.exception(ce)
+            sys.exit(1)
 
         # try to get the friendly account name
         iam_client = boto3.client("iam")
@@ -156,6 +162,12 @@ def main(
             account_alias = iam_client.list_account_aliases(MaxItems=1)["AccountAliases"][0]
         except (KeyError, IndexError):
             account_alias = account_id
+        except botocore.exceptions.ClientError as ce:
+            if re.match("^(.*)(security token|AccessDenied)(.*)$", str(ce)):
+                print(f"Please make sure you are logged in into AWS, with sufficient permissions. (Exception: {str(ce)})")
+            else:
+                logger.exception(ce)
+            sys.exit(1)
 
         config, global_exemptions, global_limit_to, user_landing_account = read_config(config_file)
 
@@ -194,12 +206,6 @@ def main(
             # Now remove duplicates and subtract from sources list
             sources = list(set(sources) - set(exempt_sources))
             logger.debug(f"Number of sources  reduced with exemptions from {len_1} to {len(sources)}")
-
-        # for quick testing
-        # sources = [
-        #     "arn:aws:iam::149072226401:role/inl-dev-oracle-apex-ApexListenerIamRole-IIZZNB8NA90P"
-        #     # "arn:aws:iam::351902532037:role/powerbi_gateway",
-        # ]
 
         results = []
 
@@ -385,41 +391,56 @@ def get_iam_roles(
     "Read (and filter) the IAM roles in the account"
     client = boto3.client('iam')
     roles = []
-    paginator = client.get_paginator('list_roles')
-    page_iterator = paginator.paginate()
-    for page in page_iterator:
-        rolelist = page["Roles"]
-        for role in rolelist:
-            # only get the roles that can be assumed by 'users'
-            policy_doc = json.dumps(role["AssumeRolePolicyDocument"])
+    try:
+        paginator = client.get_paginator('list_roles')
+        page_iterator = paginator.paginate()
 
-            if 'aws-service-role' not in role["Path"] and ( # ignore service roles
-                    # accept roles that can be assumed by users in my account
-                    f"arn:aws:iam::{my_account}:root" in policy_doc or
-                    # accept roles that can be assumed by a dedicated user landing account
-                    f"arn:aws:iam::{user_landing_account}:root" in policy_doc or
-                    # accept roles that can be assumed with SAML
-                    f"arn:aws:iam::{my_account}:saml-provider" in policy_doc or
-                    # do we want to include non user assumable roles
-                    include_system_roles
-                ):
-                roles.append(role['Arn'])
+        for page in page_iterator:
+            rolelist = page["Roles"]
+            for role in rolelist:
+                # only get the roles that can be assumed by 'users'
+                policy_doc = json.dumps(role["AssumeRolePolicyDocument"])
 
-    return roles
+                if 'aws-service-role' not in role["Path"] and ( # ignore service roles
+                        # accept roles that can be assumed by users in my account
+                        f"arn:aws:iam::{my_account}:root" in policy_doc or
+                        # accept roles that can be assumed by a dedicated user landing account
+                        f"arn:aws:iam::{user_landing_account}:root" in policy_doc or
+                        # accept roles that can be assumed with SAML
+                        f"arn:aws:iam::{my_account}:saml-provider" in policy_doc or
+                        # do we want to include non user assumable roles
+                        include_system_roles
+                    ):
+                    roles.append(role['Arn'])
+
+        return roles
+    except botocore.exceptions.ClientError as ce:
+        if re.match("^(.*)(security token|AccessDenied)(.*)$", str(ce)):
+            print(f"Please make sure you are logged in into AWS, with sufficient permissions. (Exception: {str(ce)})")
+        else:
+            logger.exception(ce)
+        sys.exit(1)
 
 def get_iam_users() -> List[str]:
     "Get all IAM users"
     client = boto3.client('iam')
     users = []
-    paginator = client.get_paginator('list_users')
-    page_iterator = paginator.paginate()
-    for page in page_iterator:
-        userlist = page["Users"]
-        for user in userlist:
-            users.append(user['Arn'])
 
-    return users
+    try:
+        paginator = client.get_paginator('list_users')
+        page_iterator = paginator.paginate()
+        for page in page_iterator:
+            userlist = page["Users"]
+            for user in userlist:
+                users.append(user['Arn'])
 
+        return users
+    except botocore.exceptions.ClientError as ce:
+        if re.match("^(.*)(security token|AccessDenied)(.*)$", str(ce)):
+            print(f"Please make sure you are logged in into AWS, with sufficient permissions. (Exception: {str(ce)})")
+        else:
+            logger.exception(ce)
+        sys.exit(1)
 
 def simulate_policy(
         source: str,
@@ -474,7 +495,10 @@ def simulate_policy(
         # but ignore it
         return None
     except client.exceptions.ClientError as ce:
-        if "throttling" in str(ce).lower():
+        if re.match("^(.*)(security token|AccessDenied)(.*)$", str(ce)):
+            print(f"Please make sure you are logged in into AWS, with sufficient permissions. (Exception: {str(ce)})")
+            sys.exit(1)
+        elif "throttling" in str(ce).lower():
             logger.error(
                 colored(
                     "\nThrottling of API is requested. " +
@@ -484,7 +508,9 @@ def simulate_policy(
             )
             time.sleep(DEFAULT_SLEEP_SECONDS)
             return simulate(source, actions, resources, sim_context)
-        raise
+        else:
+            logger.exception(ce)
+            sys.exit(1)
     except Exception as e:
         logger.error(f"\nError simulating entity {source}\n{e}")
         raise
@@ -555,17 +581,21 @@ def handle_results(
             except IndexError:
                 prefix = ""
 
+            s3_client = boto3.client('s3')
             try:
                 full_filename = f'{prefix}/{filename}'
                 logger.debug(f"Try to write results to s3://{bucket}/{full_filename}")
-                s3_client = boto3.client('s3')
                 s3_client.put_object(
                     Body=json.dumps(results).encode(),
                     Bucket=bucket,
                     Key=full_filename,
                 )
-            except s3_client.exceptions.ClientError as e:
-                logger.error(f"Could not write results to s3: {e}")
+            except s3_client.exceptions.ClientError as ce:
+                if re.match("^(.*)(security token|AccessDenied)(.*)$", str(ce)):
+                    print(f"Please make sure you are logged in into AWS, with sufficient permissions. (Exception: {str(ce)})")
+                else:
+                    logger.exception(ce)
+                sys.exit(1)
         else:
             # first ensure directory exists
             try:
@@ -587,7 +617,10 @@ def handle_results(
             except IOError as e:
                 logger.error(f"Could not write results to file system: {e}")
             finally:
-                outfile.close()
+                try:
+                    outfile.close()
+                except Exception:
+                    pass # if outfile doesn't exist, no need to close it
 
             logger.info(f'Results for {len(results)} findings are written to {full_filename}')
     elif not results:
@@ -596,5 +629,5 @@ def handle_results(
     else:
         logger.info(f"Complete list with {len(results)} failures is printed below:\n")
         print(json.dumps(results, indent=4))
-    
+
     return return_value

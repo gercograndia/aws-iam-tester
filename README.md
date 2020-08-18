@@ -193,6 +193,22 @@ aws-iam-tester --number-of-runs 10
 
 For more information, run `aws-iam-tester --help` for more instructions.
 
+## Required permissions
+
+Obviously the client has to run under an AWS security context that has sufficient permissions to query the IAM resources and run the simulator.
+
+The following permissions are needed at the minimum:
+
+```yaml
+- sts:GetCallerIdentity
+- iam:ListAccountAliases
+- iam:ListRoles
+- iam:ListUsers
+- iam:SimulatePrincipalPolicy
+```
+
+And if you want to write the output to an s3 location, then obviously you need write access (`s3:PutObject`) to that particular location as well.
+
 ## Unit testing
 
 `pytest` is being used for testing the various options.
