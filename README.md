@@ -143,7 +143,30 @@ In that case you can limit your tests to a set of roles and users:
   - "^arn:aws:iam::(\\d{12}):role/my_worker$"
 ```
 
+### Using a dynamic account id in the resource arn
+
+In case you **need** to specify the `account id` in the resource arn, you can specificy this as follows:
+
+```yaml
+- actions:
+  - "secretsmanager:GetSecretValue"
+  expected_result: succeed
+  resources:
+  - "arn:aws:secretsmanager:eu-central-1:{account_id}:secret:my-secret/*"
+```
+
 > Note that the exemptions are ignored when using a `limit_to` list.
+
+### Using regular expressions for user and role matching
+
+Regular expressions can be used when checking the users and/or roles that need to be included in the tests. Hence they are supported for the following elements in the config file:
+
+- limit_to (the filtered list of users/roles to be used for a particular test)
+- global_limit_to (the filtered list of users/roles to be used for all tests)
+- exemptions (the filtered list of users/roles that should be excluded from a particular test)
+- global_exemptions (the filtered list of users/roles that should be excluded from all tests)
+
+> For all other elements, regular expression matching is NOT supported!
 
 ## How to use
 
