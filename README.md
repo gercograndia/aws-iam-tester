@@ -143,6 +143,8 @@ In that case you can limit your tests to a set of roles and users:
   - "^arn:aws:iam::(\\d{12}):role/my_worker$"
 ```
 
+> Note that the exemptions are ignored when using a `limit_to` list.
+
 ### Using a dynamic account id in the resource arn
 
 In case you **need** to specify the `account id` in the resource arn, you can specificy this as follows:
@@ -154,8 +156,6 @@ In case you **need** to specify the `account id` in the resource arn, you can sp
   resources:
   - "arn:aws:secretsmanager:eu-central-1:{account_id}:secret:my-secret/*"
 ```
-
-> Note that the exemptions are ignored when using a `limit_to` list.
 
 ### Using regular expressions for user and role matching
 
