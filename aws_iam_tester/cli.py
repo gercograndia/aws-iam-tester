@@ -19,6 +19,7 @@ integrate it in your CI/CD pipeline.
 
 from __future__ import annotations
 
+import sys
 import click
 
 from aws_iam_tester.lib import AwsIamTester
@@ -136,7 +137,7 @@ def check_aws_account(
 
     try:
         tester = AwsIamTester(debug=debug)
-        return tester.check_account(
+        result = tester.check_account(
             number_of_runs=number_of_runs,
             dry_run=dry_run,
             config_file=config_file,
@@ -144,17 +145,29 @@ def check_aws_account(
             write_to_file=write_to_file,
             output_location=output_location,
         )
-    except Exception:
-        return 1
+        sys.exit(result)
+    except Exception as e:
+        click.echo(f"Exception occured: {e}")
+        sys.exit(1)
 
 @cli.command(name="action")
 @click.option(
-    '--action', '-a',
-    help='Action that will be simulated',
+    '--user', '-u',
+    help='User name that will be validated, either user or role is required',
+    default=None,
     )
 @click.option(
-    '--resource', '-r',
-    help="Resource that will be simulated, default '*'",
+    '--role', '-r',
+    help='Role that will be validated, either user or role is required',
+    default=None,
+    )
+@click.option(
+    '--action', '-a',
+    help='Action that will be validated',
+    )
+@click.option(
+    '--resource', '-R',
+    help="Resource that will be validated, default '*'",
     default="*"
     )
 @click.option(
@@ -164,11 +177,13 @@ def check_aws_account(
     default=False
     )
 @click.version_option(version=__version__)
-def check_command(
+def check_action(
+        user: str,
+        role: str,
         action: str,
         resource: str,
         debug: bool
-    ) -> str:
+    ):
     """
     Checks whether the provided IAM identity has permissions on the provided actions and resource.
 
@@ -179,8 +194,19 @@ def check_command(
     """
 
     check_latest_version()
-    print("in check command")
-    return 1
+
+    try:
+        tester = AwsIamTester(debug=debug)
+        tester.check_action(
+            user=user,
+            role=role,
+            action=action,
+            resource=resource,
+            debug=debug,
+        )
+    except Exception as e:
+        click.echo(f"Exception occured: {e}")
+        sys.exit(1)
 
 def check_latest_version():
     # check for newer versions

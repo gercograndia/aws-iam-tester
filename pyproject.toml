@@ -29,6 +29,7 @@ outdated = "^0.2.0"
 pytest = "^4.6"
 pyassert = "^0.4.2"
 pylint = "^2.5.2"
+rope = "^0.18.0"
 
 [tool.poetry.scripts]
 aws-iam-tester = "aws_iam_tester.cli:cli"
