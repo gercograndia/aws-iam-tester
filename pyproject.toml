@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aws-iam-tester"
-version = "0.2.4"
+version = "0.3.0"
 description = "AWS IAM tester - simple command-line tool to check permissions handed out to IAM users and roles."
 authors = ["Gerco Grandia <gerco.grandia@4synergy.nl>"]
 include = ["pyproject.toml"]
@@ -31,7 +31,7 @@ pyassert = "^0.4.2"
 pylint = "^2.5.2"
 
 [tool.poetry.scripts]
-aws-iam-tester = "aws_iam_tester.cli:main"
+aws-iam-tester = "aws_iam_tester.cli:cli"
 
 [tool.poetry.urls]
 issues = "https://github.com/gercograndia/aws-iam-tester/issues"
