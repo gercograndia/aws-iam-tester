@@ -1,0 +1,13 @@
+---
+    global_limit_to:
+      - "^arn:aws:iam::(\\d*):role/(.*)UNITTESTS(.*)$"
+    global_exemptions: 
+    - "^arn:aws:iam::(\\d{12}):role/(.*)(ADMIN|admin)(.*)$"
+    tests:
+    - actions:
+      - "secretsmanager:GetSecretValue"
+      expected_result: succeed
+      resources:
+        - "arn:aws:secretsmanager:eu-central-1:{account_id}:secret:unittests/*"
+      limit_to:
+        - "arn:aws:iam::548826201811:role/UNITTESTS-GLUE-WORKER-ROLE"
