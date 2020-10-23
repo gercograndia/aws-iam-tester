@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import click
 
-from .lib import AwsIamTester
+from aws_iam_tester.lib import AwsIamTester
 
 from typing import Dict, List, Tuple, Optional, Any
 from termcolor import colored
@@ -29,7 +29,50 @@ from outdated import check_outdated # type: ignore
 
 from . import __version__
 
-@click.command()
+class DefaultGroup(click.Group):
+    '''
+    Allow a default command for a group
+    '''
+    ignore_unknown_options = True
+
+    def __init__(self, *args, **kwargs):
+        default_command = kwargs.pop('default_command', None)
+        super(DefaultGroup, self).__init__(*args, **kwargs)
+        self.default_cmd_name = None
+        if default_command is not None:
+            self.set_default_command(default_command)
+
+    def set_default_command(self, command):
+        if isinstance(command, str):
+            cmd_name = command
+        else:
+            cmd_name = command.name
+            self.add_command(command)
+        self.default_cmd_name = cmd_name
+
+    def parse_args(self, ctx, args):
+        if not args and self.default_cmd_name is not None:
+            args.insert(0, self.default_cmd_name)
+        return super(DefaultGroup, self).parse_args(ctx, args)
+
+    def get_command(self, ctx, cmd_name):
+        if cmd_name not in self.commands and self.default_cmd_name is not None:
+            ctx.args0 = cmd_name
+            cmd_name = self.default_cmd_name
+        return super(DefaultGroup, self).get_command(ctx, cmd_name)
+
+    def resolve_command(self, ctx, args):
+        cmd_name, cmd, args = super(DefaultGroup, self).resolve_command(ctx, args)
+        args0 = getattr(ctx, 'args0', None)
+        if args0 is not None:
+            args.insert(0, args0)
+        return cmd_name, cmd, args
+
+@click.group(cls=DefaultGroup, default_command="account")
+def cli():
+    pass
+
+@cli.command(name="account")
 @click.option(
     '--number-of-runs', '-n',
     help='Run only a limited number of simulations, and then abort.',
@@ -71,7 +114,7 @@ from . import __version__
     default=False
     )
 @click.version_option(version=__version__)
-def main(
+def check_aws_account(
         number_of_runs: int,
         dry_run: bool,
         config_file: str,
@@ -81,7 +124,7 @@ def main(
         debug: bool
     ) -> int:
     """
-    Run the IAM policy tests.
+    Checks an entire AWS account based on the provided configuration.
 
     Based on the findings the following return values will be generated:
     0: Upon successful completion with NO findings
@@ -89,6 +132,57 @@ def main(
     1: Upon failures
     """
 
+    check_latest_version()
+
+    try:
+        tester = AwsIamTester(debug=debug)
+        return tester.check_account(
+            number_of_runs=number_of_runs,
+            dry_run=dry_run,
+            config_file=config_file,
+            include_system_roles=include_system_roles,
+            write_to_file=write_to_file,
+            output_location=output_location,
+        )
+    except Exception:
+        return 1
+
+@cli.command(name="action")
+@click.option(
+    '--action', '-a',
+    help='Action that will be simulated',
+    )
+@click.option(
+    '--resource', '-r',
+    help="Resource that will be simulated, default '*'",
+    default="*"
+    )
+@click.option(
+    '--debug', '-d',
+    help='Print debug messages.',
+    is_flag=True,
+    default=False
+    )
+@click.version_option(version=__version__)
+def check_command(
+        action: str,
+        resource: str,
+        debug: bool
+    ) -> str:
+    """
+    Checks whether the provided IAM identity has permissions on the provided actions and resource.
+
+    Based on the findings the following return values will be generated:
+    0: Upon successful completion with NO findings
+    -1: Upon successful completion with findings
+    1: Upon failures
+    """
+
+    check_latest_version()
+    print("in check command")
+    return 1
+
+def check_latest_version():
     # check for newer versions
     try:
         is_outdated, latest_version = check_outdated('aws-iam-tester', __version__)
@@ -100,13 +194,3 @@ def main(
         # this happens when your local version is ahead of the pypi version,
         # which happens only in development
         pass
-
-    tester = AwsIamTester(debug=debug)
-    return tester.check_account(
-        number_of_runs=number_of_runs,
-        dry_run=dry_run,
-        config_file=config_file,
-        include_system_roles=include_system_roles,
-        write_to_file=write_to_file,
-        output_location=output_location,
-    )
