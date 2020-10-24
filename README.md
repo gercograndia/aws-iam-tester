@@ -16,6 +16,29 @@ The testing leverages AWS' [IAM simulator (api)](https://docs.aws.amazon.com/IAM
 - It is an official service from AWS, so you can expect this to kept up to date over time.
 - The actual actions are evaluated, but NOT executed. Hence no need for cleaning up resources after testing.
 
+# Quick testing
+
+For convenience, you can use this tool to quickly test whether a user has a specific permission on a particular resource:
+
+```bash
+$ aws-iam-tester action -u the_user -a 'glue:DeleteTable'
+Test:
+Source:     arn:aws:iam::208912673223:user/the_user
+Action:     glue:DeleteTable
+Resource:   *
+Result:     allowed
+
+Matched statements:
+Policy:     admin_permissions
+Type:       IAM Policy
+Start:      L3:C17
+End:        L8:C6
+```
+
+# Account testing
+
+However, the initial purpose of this tool is to check an entire account whether there are no users and/or roles having permissons which they should not have.
+
 ## Configuration
 
 In order to run, a configuration of the tests to run is required.
