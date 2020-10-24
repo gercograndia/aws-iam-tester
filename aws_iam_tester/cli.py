@@ -92,16 +92,14 @@ def cli():
     default='config.yml'
     )
 @click.option(
-    '--include-system-roles', '-i',
-    help='Include non-user-assumable system roles. Default: True',
+    '--no-system-roles', '-N',
+    help='Do not include non-user-assumable system roles.',
     is_flag=True,
-    default=True
     )
 @click.option(
     '--write-to-file', '-w',
     help='Write results to file.',
     is_flag=True,
-    default=False
     )
 @click.option(
     '--output-location', '-o',
@@ -112,14 +110,13 @@ def cli():
     '--debug', '-d',
     help='Print debug messages.',
     is_flag=True,
-    default=False
     )
 @click.version_option(version=__version__)
 def check_aws_account(
         number_of_runs: int,
         dry_run: bool,
         config_file: str,
-        include_system_roles: bool,
+        no_system_roles: bool,
         write_to_file: bool,
         output_location: str,
         debug: bool
@@ -129,8 +126,8 @@ def check_aws_account(
 
     Based on the findings the following return values will be generated:
     0: Upon successful completion with NO findings
-    -1: Upon successful completion with findings
-    1: Upon failures
+    1: Upon successful completion with findings
+    2: Upon failures
     """
 
     check_latest_version()
@@ -141,14 +138,14 @@ def check_aws_account(
             number_of_runs=number_of_runs,
             dry_run=dry_run,
             config_file=config_file,
-            include_system_roles=include_system_roles,
+            no_system_roles=no_system_roles,
             write_to_file=write_to_file,
             output_location=output_location,
         )
         sys.exit(result)
     except Exception as e:
         click.echo(f"Exception occured: {e}")
-        sys.exit(1)
+        sys.exit(2)
 
 @cli.command(name="action")
 @click.option(
@@ -189,8 +186,7 @@ def check_action(
 
     Based on the findings the following return values will be generated:
     0: Upon successful completion with NO findings
-    -1: Upon successful completion with findings
-    1: Upon failures
+    2: Upon failures
     """
 
     check_latest_version()
@@ -204,9 +200,10 @@ def check_action(
             resource=resource,
             debug=debug,
         )
+        sys.exit(0)
     except Exception as e:
         click.echo(f"Exception occured: {e}")
-        sys.exit(1)
+        sys.exit(2)
 
 def check_latest_version():
     # check for newer versions

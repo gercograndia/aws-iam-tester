@@ -6,7 +6,7 @@ import subprocess
 import pytest
 import pathlib
 
-from pyassert import *
+from pyassert import assert_that
 # from aws-iam-tester import cli
 
 script_path = pathlib.Path(__file__).parent.absolute()
@@ -18,7 +18,11 @@ def run_command(command_list):
         stderr=subprocess.PIPE
     )
     stdout, stderr = process.communicate()
-    # print(f"stdout: {stdout}")
+    # print(f"Return code: {process.returncode}")
+    # print(f"Stdout: {stdout}")
+    # print(f"Stderr: {stderr}")
+
+    assert_that(process.returncode).is_less_than(2)
     assert_that(stderr).is_not_none()
 
     return str(stdout), str(stderr)
@@ -51,7 +55,7 @@ def test_dry_run():
 
 def test_no_system_roles():
     stdout, stderr = run_command(
-        ['aws-iam-tester', '--config-file', f'{script_path}/config.yml', '--no-include-system-roles'],
+        ['aws-iam-tester', '--config-file', f'{script_path}/config.yml', '--no-system-roles'],
     )
 
 def test_full_run():
