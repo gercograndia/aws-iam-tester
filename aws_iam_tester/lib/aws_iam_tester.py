@@ -94,7 +94,7 @@ class AwsIamTester():
             else:
                 colour = "red"
 
-            click.echo(f"Test:", bold=True)
+            click.secho(f"Test:", bold=True)
             click.echo(f"Source:     {source}")
             click.echo(f"Action:     {action}")
             click.echo(f"Resource:   {resource}")
