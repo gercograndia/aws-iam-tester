@@ -239,6 +239,14 @@ aws-iam-tester --number-of-runs 10
 
 For more information, run `aws-iam-tester --help` for more instructions.
 
+## Return codes
+
+The tester returns the following return codes:
+
+- 0 upon successful completion with NO findings
+- 1 upon successful completion with NO findings
+- 2 (or higher) on failures
+
 ## Required permissions
 
 Obviously the client has to run under an AWS security context that has sufficient permissions to query the IAM resources and run the simulator.
