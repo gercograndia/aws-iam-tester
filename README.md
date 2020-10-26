@@ -244,7 +244,7 @@ For more information, run `aws-iam-tester --help` for more instructions.
 The tester returns the following return codes:
 
 - 0 upon successful completion with NO findings
-- 1 upon successful completion with NO findings
+- 1 upon successful completion with findings
 - 2 (or higher) on failures
 
 ## Required permissions
