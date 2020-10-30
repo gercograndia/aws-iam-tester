@@ -38,15 +38,15 @@ End:        L8:C6
 Or to see who has access to a particular resource and action by omitting both `user` and `role`:
 
 ```bash
-$ aws-iam-tester access -a "s3:put"
+$ aws-iam-tester access -a "s3:PutObject"
 ..............
 
 Summary:
 
-| Source                                                       | Action   | Resource   | Decision   | Policies                                             |
-|--------------------------------------------------------------|----------|------------|------------|------------------------------------------------------|
-| arn:aws:iam::208912673223:user/ggrandia                      | s3:put   | *          | allowed    | group_admins_AdministratorAccess-admins-201406171406 |
-| arn:aws:iam::208912673223:role/OrganizationAccountAccessRole | s3:put   | *          | allowed    | AdministratorAccess                                  |
+| Source                                                   | Action       | Resource   | Decision   | Policies            |
+|----------------------------------------------------------|--------------|------------|------------|---------------------|
+| arn:aws:iam::XXXXXXXXXXXX:user/the_user                  | s3:PutObject | *          | allowed    | admins_permissions  |
+| arn:aws:iam::xxxxxxxxxxxx:role/the_role                  | s3:PutObject | *          | allowed    | AdministratorAccess |
 ```
 
 # Account testing
