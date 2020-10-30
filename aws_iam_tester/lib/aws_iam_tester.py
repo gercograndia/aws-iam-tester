@@ -18,7 +18,8 @@ import click
 import boto3 # type: ignore
 import botocore # type: ignore
 
-from typing import Dict, List, Tuple, Optional, Any
+from tabulate import tabulate
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 from termcolor import colored
 
 class AwsIamTester():
@@ -68,8 +69,9 @@ class AwsIamTester():
         role: str,
         action: str,
         resource: str,
-        debug: bool
+        json_output: bool,
     ):
+        "Checks whether a given user OR role has access to a particular action and resource"
         try:
             # logger = self.get_logger()
             account_id, account_alias = self.get_aws_data()
@@ -83,32 +85,106 @@ class AwsIamTester():
             else:
                 raise Exception("One of user or role is required")
 
-            result = self.simulate_policy(
-                source=source,
+            results, counter = self.evaluate_sources(
+                sources=[source],
+                limit_to=[],
+                exemptions=[],
+                expect_failures=None, # this will then both denied and allows
                 actions=[action],
                 resources=[resource],
-            )[0]
-
-            if result['EvalDecision'] == "allowed":
-                colour = "green"
+                sim_context=[],
+            )
+            if json_output:
+                return self.handle_results(
+                    results=results,
+                )
             else:
-                colour = "red"
+                result = results[0]
 
-            click.secho(f"Test:", bold=True)
-            click.echo(f"Source:     {source}")
-            click.echo(f"Action:     {action}")
-            click.echo(f"Resource:   {resource}")
-            click.secho(f"Result:     ", nl=False)
-            click.secho(f"{result['EvalDecision']}\n", fg=colour)
+                decision = result['decision']
+                if decision == "allowed":
+                    allowed = True
+                    colour = "green"
+                else:
+                    allowed = False
+                    colour = "red"
 
-            if result["MatchedStatements"]:
-                click.secho("Matched statements:", bold=True)
+                click.secho(f"\n\nTest:", bold=True)
+                click.echo(f"Source:     {source}")
+                click.echo(f"Action:     {action}")
+                click.echo(f"Resource:   {resource}")
+                click.secho(f"Result:     ", nl=False)
+                click.secho(f"{decision}\n", fg=colour)
 
-            for ms in result["MatchedStatements"]:
-                click.echo(f"Policy:     {ms['SourcePolicyId']}")
-                click.echo(f"Type:       {ms['SourcePolicyType']}")
-                click.echo(f"Start:      L{ms['StartPosition']['Line']}:C{ms['StartPosition']['Column']}")
-                click.echo(f"End:        L{ms['EndPosition']['Line']}:C{ms['EndPosition']['Column']}")
+                ms_key = "matched_statements"
+                if ms_key in result:
+                    matched_statements = result[ms_key]
+
+                    click.secho("Matched statements:", bold=True)
+                    for ms in matched_statements:
+                        click.echo(f"Policy:     {ms['SourcePolicyId']}")
+                        click.echo(f"Type:       {ms['SourcePolicyType']}")
+                        click.echo(f"Start:      L{ms['StartPosition']['Line']}:C{ms['StartPosition']['Column']}")
+                        click.echo(f"End:        L{ms['EndPosition']['Line']}:C{ms['EndPosition']['Column']}")
+                
+                return allowed
+        except botocore.exceptions.ClientError as ce:
+            if re.match("^(.*)(security token|AccessDenied)(.*)$", str(ce)):
+                click.echo(f"Please make sure you are logged in into AWS, with sufficient permissions.")
+
+            raise
+
+    def check_access(
+        self,
+        action: str,
+        resource: str,
+        json_output: bool,
+    ):
+        try:
+            logger = self.get_logger()
+            account_id, account_alias = self.get_aws_data()
+
+            sources = self.determine_source(
+                account_id=account_id,
+                no_system_roles=False,
+            )
+            results, counter = self.evaluate_sources(
+                sources=sources,
+                limit_to=[],
+                exemptions=[],
+                expect_failures=True, # this will then return people with access
+                actions=[action],
+                resources=[resource],
+                sim_context=[],
+            )
+
+            if json_output:
+                return self.handle_results(
+                    results=results,
+                )
+            else:
+                to_print = []
+                for r in results:
+                    policies = ""
+                    ms_key = "matched_statements"
+                    if ms_key in r:
+                        matched_statements = r[ms_key]
+
+                        for ms in matched_statements:
+                            policies = policies + ", " + ms['SourcePolicyId']
+
+                        policies = policies[2:] # remove the first ', '
+
+                    to_print.append([
+                        r['source'],
+                        r['action'],
+                        r['resource'],
+                        r['decision'],
+                        policies,
+                    ])
+
+                self.show_summary(to_print)
+
         except botocore.exceptions.ClientError as ce:
             if re.match("^(.*)(security token|AccessDenied)(.*)$", str(ce)):
                 click.echo(f"Please make sure you are logged in into AWS, with sufficient permissions.")
@@ -333,11 +409,11 @@ class AwsIamTester():
 
     def determine_source(
             self,
-            user_landing_account: Optional[str],
             account_id: str,
-            no_system_roles: bool,
-            global_limit_to: List[str],
-            global_exemptions: List[str],
+            user_landing_account: Optional[str] = None,
+            no_system_roles: bool = False,
+            global_limit_to: List[str] = [],
+            global_exemptions: List[str] = [],
         ) -> List[str]:
         "Determine the list of sources that needs to be evaluated"
         logger = self.get_logger()
@@ -385,13 +461,13 @@ class AwsIamTester():
         sources: List[str],
         limit_to: List[str],
         exemptions: List[str],
-        number_of_runs: int,
-        dry_run: bool,
-        expect_failures: bool,
-        counter: int,
+        expect_failures: Optional[Union[Literal[True], Literal[False]]],
         actions: List[str],
         resources: List[str],
         sim_context: List[Dict[Any, Any]],
+        number_of_runs: int = -1,
+        dry_run: bool = False,
+        counter: int = 0,
         ) -> Tuple[List[Dict], int]:
         "Evaluate the list of sources for a given configuration"
 
@@ -444,28 +520,49 @@ class AwsIamTester():
                     denies = [x for x in evaluation_results if self.is_denied(x)]
                     allows = [x for x in evaluation_results if not self.is_denied(x)]
 
-                    if expect_failures:
+                    if expect_failures is None:
+                        # just use all results
+                        filtered_results = evaluation_results
+                    elif expect_failures:
                         # allows are failures
-                        failures = allows
+                        filtered_results = allows
                     else:
                         # denies are failures
-                        failures = denies
+                        filtered_results = denies
 
-                    success = (len(failures) == 0)
+                    success = (len(filtered_results) == 0)
 
-                    if success:
+                    if expect_failures is None:
+                        results.extend(
+                            self.construct_results(
+                                source=source,
+                                results=filtered_results,
+                                print_results=self.debug,
+                            )
+                        )
+                        if not self.debug:
+                            if filtered_results[0]["EvalDecision"] == "allowed":
+                                fg = "green"
+                            else:
+                                fg = "red"
+
+                            click.secho(".", fg=fg, nl=False)
+                            sys.stdout.flush()
+                    elif success:
                         if self.debug:
-                            logger.debug(f"Success: {source}", fg="green")
+                            click.secho(f"Success: {source}", fg="green")
                         else:
                             click.secho(".", fg="green", nl=False)
                             sys.stdout.flush()
                     else:
-                        results = self.construct_results(
-                            source=source,
-                            expect_failures=expect_failures,
-                            results=failures,
-                            print_results=self.debug,
+                        results.extend(
+                            self.construct_results(
+                                source=source,
+                                results=filtered_results,
+                                print_results=self.debug,
                             )
+                        )
+
                         if not self.debug:
                             click.secho(".", fg="red", nl=False)
                             sys.stdout.flush()
@@ -548,17 +645,16 @@ class AwsIamTester():
     def construct_results(
             self,
             source: str,
-            expect_failures: bool,
             results: Any,
-            print_results: bool = True
+            print_results: bool = True,
         ) -> List[Dict]:
         """Constructs a dict with the results of a simulation evaluation result"""
         output = ""
         response = []
+
         for er in results:
             message = (
                 f"\nSource: {source}\n"
-                f"Must fail: {expect_failures}\n"
                 f"Evaluated Action Name: {er['EvalActionName']}\n"
                 f"\tEvaluated Resource name: {er['EvalResourceName']}\n"
                 f"\tDecision: {er['EvalDecision']}\n"
@@ -567,7 +663,6 @@ class AwsIamTester():
             r = {
                 "source": source,
                 "action": er['EvalActionName'],
-                "must_fail": expect_failures,
                 "resource": er['EvalResourceName'],
                 "decision": er['EvalDecision'],
                 "matched_statements": er['MatchedStatements'],
@@ -582,9 +677,9 @@ class AwsIamTester():
     def handle_results(
             self,
             results: List[Dict],
-            write_to_file: bool,
-            output_location: str,
-            account: str
+            write_to_file: bool = False,
+            output_location: str = "",
+            account: str = "",
         ) -> int:
         "Print the results or write them to file"
         logger = self.get_logger()
@@ -646,12 +741,29 @@ class AwsIamTester():
                     except Exception:
                         pass # if outfile doesn't exist, no need to close it
 
-                logger.info(f'Results for {len(results)} findings are written to {full_filename}')
+                logger.info(f'Results for {len(results)} results are written to {full_filename}')
         elif not results:
             logger.info(colored("No findings found!", "green"))
             return_value = 0
         else:
-            logger.info(f"Complete list with {len(results)} failures is printed below:\n")
+            logger.info(f"Complete list with {len(results)} results is printed below:\n")
             click.echo(json.dumps(results, indent=4))
 
         return return_value
+
+    def show_summary(self, results):
+        '''
+        Show summary containing test results.
+        '''
+        click.secho("\n\nSummary:\n", bold=True)
+        headers = [
+            'Source',
+            'Action',
+            'Resource',
+            'Decision',
+            'Policies',
+        ]
+
+        click.echo(tabulate(results, headers=headers, tablefmt="github"))
+        click.echo("\n")
+

@@ -18,6 +18,7 @@ integrate it in your CI/CD pipeline.
 # pylint: disable=broad-except,C0103,E0401,R0912,R0913,R0914,R0915,R1702,W0603,W1203
 
 from __future__ import annotations
+import json
 
 import sys
 import click
@@ -145,17 +146,19 @@ def check_aws_account(
         sys.exit(result)
     except Exception as e:
         click.echo(f"Exception occured: {e}")
+        if debug:
+            raise
         sys.exit(2)
 
-@cli.command(name="action")
+@cli.command(name="access")
 @click.option(
     '--user', '-u',
-    help='User name that will be validated, either user or role is required',
+    help='User name that will be validated, if user and role is omitted all entities having access will be returned',
     default=None,
     )
 @click.option(
     '--role', '-r',
-    help='Role that will be validated, either user or role is required',
+    help='Role that will be validated, if user and role is omitted all entities having access will be returned',
     default=None,
     )
 @click.option(
@@ -168,24 +171,32 @@ def check_aws_account(
     default="*"
     )
 @click.option(
+    '--json-output', '-j',
+    help="Output in json format",
+    is_flag=True,
+    default=False
+    )
+@click.option(
     '--debug', '-d',
     help='Print debug messages.',
     is_flag=True,
     default=False
     )
 @click.version_option(version=__version__)
-def check_action(
+def check_access(
         user: str,
         role: str,
         action: str,
         resource: str,
-        debug: bool
+        json_output: bool,
+        debug: bool,
     ):
     """
     Checks whether the provided IAM identity has permissions on the provided actions and resource.
 
     Based on the findings the following return values will be generated:
-    0: Upon successful completion with NO findings
+    0: Upon successful completion and allowed
+    1: Upon successful completion and not allowed
     2: Upon failures
     """
 
@@ -193,16 +204,26 @@ def check_action(
 
     try:
         tester = AwsIamTester(debug=debug)
-        tester.check_action(
-            user=user,
-            role=role,
-            action=action,
-            resource=resource,
-            debug=debug,
-        )
-        sys.exit(0)
+        if user or role:
+            allowed = tester.check_action(
+                user=user,
+                role=role,
+                action=action,
+                resource=resource,
+                json_output=json_output,
+            )
+        else:
+            allowed = tester.check_access(
+                action=action,
+                resource=resource,
+                json_output=json_output,
+            )
+            sys.exit(0 if allowed else 1)
+        sys.exit(0 if allowed else 1)
     except Exception as e:
         click.echo(f"Exception occured: {e}")
+        if debug:
+            raise
         sys.exit(2)
 
 def check_latest_version():

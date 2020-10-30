@@ -80,13 +80,31 @@ def test_full_run_with_global_limit():
 
 def test_check_user_action():
     returncode, stdout, stderr = run_command(
-        ['aws-iam-tester', 'action', '-u', 'ggrandia', '-a', 'glue:DeleteTable'],
+        ['aws-iam-tester', 'access', '-u', 'ggrandia', '-a', 'glue:DeleteTable'],
     )
     assert_that(stdout).matches(r"(^(.)*Action(.)*glue:DeleteTable(.)*$)")
 
+def test_check_user_action_with_json():
+    returncode, stdout, stderr = run_command(
+        ['aws-iam-tester', 'access', '-u', 'ggrandia', '-a', 'glue:DeleteTable', '-j'],
+    )
+    assert_that(stdout).matches(r"(^(.)*[(.)*](.)*$)")
+
+def test_access_check():
+    returncode, stdout, stderr = run_command(
+        ['aws-iam-tester', 'access', '-a', 'glue:DeleteTable'],
+    )
+    assert_that(stdout).matches(r"(^(.)*Summary:(.)*$)")
+
+def test_access_check_with_json():
+    returncode, stdout, stderr = run_command(
+        ['aws-iam-tester', 'access', '-a', 'glue:DeleteTable', '-j'],
+    )
+    assert_that(stdout).matches(r"(^(.)*[(.)*](.)*$)")
+
 def test_check_invalid_user_action():
     returncode, stdout, stderr = run_command(
-        ['aws-iam-tester', 'action', '-u', 'non_existent_user', '-a', 'glue:DeleteTable'],
+        ['aws-iam-tester', 'access', '-u', 'non_existent_user', '-a', 'glue:DeleteTable'],
         do_assert=False,
     )
     assert_that(stdout).matches(r"(^(.)*Could not find entity(.)*$)")
@@ -94,13 +112,13 @@ def test_check_invalid_user_action():
 
 def test_check_role_action():
     returncode, stdout, stderr = run_command(
-        ['aws-iam-tester', 'action', '-r', 'api2s3_worker_role', '-a', 'glue:DeleteTable'],
+        ['aws-iam-tester', 'access', '-r', 'api2s3_worker_role', '-a', 'glue:DeleteTable'],
     )
     assert_that(stdout).matches(r"(^(.)*Action(.)*glue:DeleteTable(.)*$)")
 
 def test_check_invalid_user_action():
     returncode, stdout, stderr = run_command(
-        ['aws-iam-tester', 'action', '-r', 'non_existent_role', '-a', 'glue:DeleteTable'],
+        ['aws-iam-tester', 'access', '-r', 'non_existent_role', '-a', 'glue:DeleteTable'],
         do_assert=False,
     )
     assert_that(stdout).matches(r"(^(.)*Could not find entity(.)*$)")
@@ -108,7 +126,7 @@ def test_check_invalid_user_action():
 
 def test_check_both_user_and_role_action():
     returncode, stdout, stderr = run_command(
-        ['aws-iam-tester', 'action', '-u', 'whatever', '-r', 'whatever', '-a', 'glue:DeleteTable'],
+        ['aws-iam-tester', 'access', '-u', 'whatever', '-r', 'whatever', '-a', 'glue:DeleteTable'],
         do_assert=False,
     )
     assert_that(stdout).matches(r"(^(.)*Pass in user or role, not both(.)*$)")

@@ -21,7 +21,7 @@ The testing leverages AWS' [IAM simulator (api)](https://docs.aws.amazon.com/IAM
 For convenience, you can use this tool to quickly test whether a user has a specific permission on a particular resource:
 
 ```bash
-$ aws-iam-tester action -u the_user -a 'glue:DeleteTable'
+$ aws-iam-tester access -u the_user -a 'glue:DeleteTable'
 Test:
 Source:     arn:aws:iam::208912673223:user/the_user
 Action:     glue:DeleteTable
@@ -33,6 +33,20 @@ Policy:     admin_permissions
 Type:       IAM Policy
 Start:      L3:C17
 End:        L8:C6
+```
+
+Or to see who has access to a particular resource and action by omitting both `user` and `role`:
+
+```bash
+$ aws-iam-tester access -a "s3:put"
+..............
+
+Summary:
+
+| Source                                                       | Action   | Resource   | Decision   | Policies                                             |
+|--------------------------------------------------------------|----------|------------|------------|------------------------------------------------------|
+| arn:aws:iam::208912673223:user/ggrandia                      | s3:put   | *          | allowed    | group_admins_AdministratorAccess-admins-201406171406 |
+| arn:aws:iam::208912673223:role/OrganizationAccountAccessRole | s3:put   | *          | allowed    | AdministratorAccess                                  |
 ```
 
 # Account testing

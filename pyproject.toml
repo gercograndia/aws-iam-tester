@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aws-iam-tester"
-version = "0.3.2"
+version = "0.3.3"
 description = "AWS IAM tester - simple command-line tool to check permissions handed out to IAM users and roles."
 authors = ["Gerco Grandia <gerco.grandia@4synergy.nl>"]
 include = ["pyproject.toml"]
@@ -25,6 +25,7 @@ termcolor = "^1.1.0"
 toml = "^0.10.0"
 
 outdated = "^0.2.0"
+tabulate = "^0.8.7"
 [tool.poetry.dev-dependencies]
 pytest = "^4.6"
 pyassert = "^0.4.2"
