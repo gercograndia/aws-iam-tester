@@ -19,7 +19,7 @@ import boto3 # type: ignore
 import botocore # type: ignore
 
 from tabulate import tabulate
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union  #, Literal # Literal is p3.8 and higher
 from termcolor import colored
 
 class AwsIamTester():
@@ -461,7 +461,7 @@ class AwsIamTester():
         sources: List[str],
         limit_to: List[str],
         exemptions: List[str],
-        expect_failures: Optional[Union[Literal[True], Literal[False]]],
+        expect_failures: Optional[int],  # This is better but from p3.8 only: Optional[Union[Literal[True], Literal[False]]],
         actions: List[str],
         resources: List[str],
         sim_context: List[Dict[Any, Any]],
