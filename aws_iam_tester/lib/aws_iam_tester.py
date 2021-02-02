@@ -236,7 +236,6 @@ class AwsIamTester():
                 global_limit_to=global_limit_to,
                 global_exemptions=global_exemptions,
             )
-
             results = []
 
             counter = 0
@@ -430,7 +429,7 @@ class AwsIamTester():
         sources.extend(users)
         sources.extend(roles)
         len_1 = len(sources)
-
+        
         # If we have a global_limit_to, reduce the full set of sources
         # to only that in order to improve performance
         if global_limit_to:
@@ -452,7 +451,7 @@ class AwsIamTester():
                 exempt_sources.extend(filtered_list)
             # Now remove duplicates and subtract from sources list
             sources = list(set(sources) - set(exempt_sources))
-            logger.debug(f"Number of sources  reduced with exemptions from {len_1} to {len(sources)}")
+            logger.debug(f"Number of sources reduced with exemptions from {len_1} to {len(sources)}")
 
         return sources
 
@@ -472,6 +471,7 @@ class AwsIamTester():
         "Evaluate the list of sources for a given configuration"
 
         logger = self.get_logger()
+        logger.debug(f"Evaluate sources: {sources}")
 
         results = []
         for source in sources:
@@ -738,7 +738,7 @@ class AwsIamTester():
                     try:
                         if outfile:
                             outfile.close()
-                    except Exception:
+                    except:
                         pass # if outfile doesn't exist, no need to close it
 
                 logger.info(f'Results for {len(results)} results are written to {full_filename}')
