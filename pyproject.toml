@@ -3,7 +3,6 @@ name = "aws-iam-tester"
 version = "0.3.4"
 description = "AWS IAM tester - simple command-line tool to check permissions handed out to IAM users and roles."
 authors = ["Gerco Grandia <gerco.grandia@4synergy.nl>"]
-include = ["pyproject.toml"]
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/gercograndia/aws-iam-tester"
@@ -22,10 +21,9 @@ boto3 = "^1.12.22"
 pyyaml = "^5.3"
 click = "^7.1.1"
 termcolor = "^1.1.0"
-toml = "^0.10.0"
-
 outdated = "^0.2.0"
 tabulate = "^0.8.7"
+
 [tool.poetry.dev-dependencies]
 pytest = "^4.6"
 pyassert = "^0.4.2"
