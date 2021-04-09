@@ -49,6 +49,22 @@ Summary:
 | arn:aws:iam::xxxxxxxxxxxx:role/the_role                  | s3:PutObject | *          | allowed    | AdministratorAccess |
 ```
 
+## Finding out who has access to a particular action/resource combination
+
+It might be useful to check your highly senstive resources and find out who exactly can access these. 
+
+```bash
+$ aws-iam-tester access -a "s3:PutObject" -R "arn:aws:s3:::my-strictly-confidential-data"
+..............
+
+Summary:
+
+| Source                                                   | Action       | Resource                                   | Decision   | Policies            |
+|----------------------------------------------------------|--------------|--------------------------------------------|------------|---------------------|
+| arn:aws:iam::XXXXXXXXXXXX:user/the_user                  | s3:PutObject | arn:aws:s3:::my-strictly-confidential-data | allowed    | admins_permissions  |
+| arn:aws:iam::xxxxxxxxxxxx:role/the_role                  | s3:PutObject | arn:aws:s3:::my-strictly-confidential-data | allowed    | AdministratorAccess |
+```
+
 # Account testing
 
 However, the initial purpose of this tool is to check an entire account whether there are no users and/or roles having permissons which they should not have.
