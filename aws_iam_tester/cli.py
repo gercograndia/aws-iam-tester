@@ -226,6 +226,61 @@ def check_access(
             raise
         sys.exit(2)
 
+@cli.command(name="search")
+@click.option(
+    '--action', '-a',
+    help='Action that will be validated',
+    required=True,
+    )
+@click.option(
+    '--resource', '-R',
+    help="Resource that will be validated, default '*'",
+    default="*"
+    )
+@click.option(
+    '--json-output', '-j',
+    help="Output in json format",
+    is_flag=True,
+    default=False
+    )
+@click.option(
+    '--debug', '-d',
+    help='Print debug messages.',
+    is_flag=True,
+    default=False
+    )
+@click.version_option(version=__version__)
+def search_access(
+        action: str,
+        resource: str,
+        json_output: bool,
+        debug: bool,
+    ):
+    """
+    Search which users and roles have access on the provided actions and resource.
+
+    Based on the findings the following return values will be generated:
+    0: Upon successful completion and allowed
+    1: Upon successful completion and not allowed
+    2: Upon failures
+    """
+
+    check_latest_version()
+
+    try:
+        tester = AwsIamTester(debug=debug)
+        allowed = tester.check_access(
+            action=action,
+            resource=resource,
+            json_output=json_output,
+        )
+        sys.exit(0 if allowed else 1)
+    except Exception as e:
+        click.echo(f"Exception occured: {e}")
+        if debug:
+            raise
+        sys.exit(2)
+
 def check_latest_version():
     # check for newer versions
     try:

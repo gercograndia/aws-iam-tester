@@ -29,10 +29,6 @@ def run_command(command_list, do_assert=True, show_debug=False):
 
     return process.returncode, str(stdout), str(stderr)
 
-def test_runas_module():
-    exit_status = os.system(f'python -m aws_iam_tester --help')
-    assert exit_status == 0
-
 def test_help():
     returncode, stdout, stderr = run_command(
         ['aws-iam-tester', '--help']
