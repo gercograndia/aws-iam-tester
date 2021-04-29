@@ -109,12 +109,22 @@ class AwsIamTester():
                     allowed = False
                     colour = "red"
 
+                org_scp = result['org_scp']
+                if org_scp == "allowed":
+                    org_colour = "green"
+                elif org_scp == "denied":
+                    org_colour = "red"
+                else:
+                    org_colour = "white"
+
                 click.secho(f"\n\nTest:", bold=True)
-                click.echo(f"Source:     {source}")
-                click.echo(f"Action:     {action}")
-                click.echo(f"Resource:   {resource}")
-                click.secho(f"Result:     ", nl=False)
-                click.secho(f"{decision}\n", fg=colour)
+                click.echo(f"Source:            {source}")
+                click.echo(f"Action:            {action}")
+                click.echo(f"Resource:          {resource}")
+                click.secho(f"Result:            ", nl=False)
+                click.secho(f"{decision}", fg=colour)
+                click.secho(f"Allowed by org:    ", nl=False)
+                click.secho(f"{org_scp}\n", fg=org_colour)
 
                 ms_key = "matched_statements"
                 if ms_key in result:
@@ -653,11 +663,20 @@ class AwsIamTester():
         response = []
 
         for er in results:
+            if er.get("OrganizationsDecisionDetail", None):
+                if er.get("OrganizationsDecisionDetail").get("AllowedByOrganizations"):
+                    org_scp = "allowed"
+                else:
+                    org_scp = "denied"
+            else:
+                org_scp = "no_org"
+
             message = (
                 f"\nSource: {source}\n"
                 f"Evaluated Action Name: {er['EvalActionName']}\n"
                 f"\tEvaluated Resource name: {er['EvalResourceName']}\n"
                 f"\tDecision: {er['EvalDecision']}\n"
+                f"\tOrganizations policy: {org_scp}\n"
                 f"\tMatched statements: {er['MatchedStatements']}"
             )
             r = {
@@ -665,6 +684,7 @@ class AwsIamTester():
                 "action": er['EvalActionName'],
                 "resource": er['EvalResourceName'],
                 "decision": er['EvalDecision'],
+                "org_scp": org_scp,
                 "matched_statements": er['MatchedStatements'],
             }
             response.append(r)

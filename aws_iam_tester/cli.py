@@ -158,7 +158,7 @@ def check_aws_account(
     )
 @click.option(
     '--role', '-r',
-    help='Role that will be validated, if user and role is omitted all entities having access will be returned',
+    help='Role name that will be validated, if user and role is omitted all entities having access will be returned',
     default=None,
     )
 @click.option(
