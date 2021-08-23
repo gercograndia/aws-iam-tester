@@ -109,6 +109,14 @@ class AwsIamTester():
                     allowed = False
                     colour = "red"
 
+                pb = result['permissions_boundary']
+                if pb == "allowed":
+                    pb_colour = "green"
+                elif pb == "denied":
+                    pb_colour = "red"
+                else:
+                    pb_colour = "white"
+
                 org_scp = result['org_scp']
                 if org_scp == "allowed":
                     org_colour = "green"
@@ -118,12 +126,14 @@ class AwsIamTester():
                     org_colour = "white"
 
                 click.secho(f"\n\nTest:", bold=True)
-                click.echo(f"Source:            {source}")
-                click.echo(f"Action:            {action}")
-                click.echo(f"Resource:          {resource}")
-                click.secho(f"Result:            ", nl=False)
+                click.echo(f"Source:\t\t\t{source}")
+                click.echo(f"Action:\t\t\t{action}")
+                click.echo(f"Resource:\t\t{resource}")
+                click.secho(f"Result:\t\t\t", nl=False)
                 click.secho(f"{decision}", fg=colour)
-                click.secho(f"Allowed by org:    ", nl=False)
+                click.secho(f"Permissions boundary:\t", nl=False)
+                click.secho(f"{pb}", fg=pb_colour)
+                click.secho(f"Allowed by org:\t\t", nl=False)
                 click.secho(f"{org_scp}\n", fg=org_colour)
 
                 ms_key = "matched_statements"
@@ -584,14 +594,14 @@ class AwsIamTester():
             source: str,
             actions: List[str],
             resources: List[str],
-            sim_context: List[Dict] = None
+            sim_context: List[Dict] = None,
             ) -> List[Dict]:
         """Simulate a set of actions from a specific principal against a resource"""
         def simulate(
                 source: str,
                 actions: List[str],
                 resources: List[str],
-                sim_context: List[Dict] = None
+                sim_context: List[Dict] = None,
             ) -> List[Dict]:
             # do we have a custom context to pass along?
             if not sim_context:
@@ -663,6 +673,14 @@ class AwsIamTester():
         response = []
 
         for er in results:
+            if er.get("PermissionsBoundaryDecisionDetail", None):
+                if er.get("PermissionsBoundaryDecisionDetail").get("AllowedByPermissionsBoundary"):
+                    pb = "allowed"
+                else:
+                    pb = "denied"
+            else:
+                pb = "no_pb"
+
             if er.get("OrganizationsDecisionDetail", None):
                 if er.get("OrganizationsDecisionDetail").get("AllowedByOrganizations"):
                     org_scp = "allowed"
@@ -676,6 +694,7 @@ class AwsIamTester():
                 f"Evaluated Action Name: {er['EvalActionName']}\n"
                 f"\tEvaluated Resource name: {er['EvalResourceName']}\n"
                 f"\tDecision: {er['EvalDecision']}\n"
+                f"\Permissions boundary: {pb}\n"
                 f"\tOrganizations policy: {org_scp}\n"
                 f"\tMatched statements: {er['MatchedStatements']}"
             )
@@ -684,6 +703,7 @@ class AwsIamTester():
                 "action": er['EvalActionName'],
                 "resource": er['EvalResourceName'],
                 "decision": er['EvalDecision'],
+                "permissions_boundary": pb,
                 "org_scp": org_scp,
                 "matched_statements": er['MatchedStatements'],
             }
