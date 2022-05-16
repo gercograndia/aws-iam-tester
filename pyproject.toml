@@ -29,6 +29,8 @@ pytest = "^4.6"
 pyassert = "^0.4.2"
 pylint = "^2.5.2"
 rope = "^0.18.0"
+tox = "^3.25.0"
+mypy = "^0.950"
 
 [tool.poetry.scripts]
 aws-iam-tester = "aws_iam_tester.cli:cli"
