@@ -727,7 +727,17 @@ class AwsIamTester():
         click.echo("\n\n")
         logger.debug("Handle results")
         return_value = 1
-        if results and write_to_file:
+        full_results = {}
+
+        if results:
+            # get the unique set of sources
+            sources = list(set([r["source"] for r in results]))
+
+            # prepare the full_results
+            full_results['results'] = results
+            full_results['sources'] = sources
+        
+        if full_results and write_to_file:
             timestr = time.strftime("%Y%m%d-%H%M%S")
             filename = f'results-{account}-{timestr}.json'
 
@@ -749,7 +759,7 @@ class AwsIamTester():
                 full_filename = f'{prefix}/{filename}'
                 logger.debug(f"Try to write results to s3://{bucket}/{full_filename}")
                 s3_client.put_object(
-                    Body=json.dumps(results).encode(),
+                    Body=json.dumps(full_results).encode(),
                     Bucket=bucket,
                     Key=full_filename,
                 )
@@ -771,7 +781,7 @@ class AwsIamTester():
                     full_filename = f'{path}/{filename}'
                     logger.debug(f"Try to write results to local file system: {full_filename}")
                     with open(full_filename, 'w') as outfile:
-                        json.dump(results, outfile, indent=4)
+                        json.dump(full_results, outfile, indent=4)
                 except IOError as e:
                     logger.error(f"Could not write results to file system: {e}")
                 finally:
@@ -782,12 +792,15 @@ class AwsIamTester():
                         pass # if outfile doesn't exist, no need to close it
 
                 logger.info(f'Results for {len(results)} results are written to {full_filename}')
-        elif not results:
+        elif not full_results:
             logger.info(colored("No findings found!", "green"))
             return_value = 0
         else:
-            logger.info(f"Complete list with {len(results)} results is printed below:\n")
-            click.echo(json.dumps(results, indent=4))
+            logger.info(f"Complete list of matching sources:\n")
+            click.echo(json.dumps(full_results['sources'], indent=4))
+
+            logger.info(f"\nComplete list of {len(results)} results:\n")
+            click.echo(json.dumps(full_results['results'], indent=4))
 
         return return_value
 
