@@ -299,4 +299,11 @@ And if you want to write the output to an s3 location, then obviously you need w
 
 As long as the `aws-iam-tester` module is installed, you can run the [tests](./tests).
 
+```console
+pytest -vsx
+
+# or, alternatively
+poetry run pytest -vsx
+```
+
 After installing `tox`, you can also simply run `$ tox`.
