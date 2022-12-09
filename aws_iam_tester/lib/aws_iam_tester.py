@@ -74,7 +74,7 @@ class AwsIamTester():
         "Checks whether a given user OR role has access to a particular action and resource"
         try:
             # logger = self.get_logger()
-            account_id, account_alias = self.get_aws_data(self)
+            account_id, account_alias = self.get_aws_data()
 
             if user and role:
                 raise Exception("Pass in user or role, not both")
