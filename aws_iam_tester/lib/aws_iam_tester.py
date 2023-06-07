@@ -233,7 +233,10 @@ class AwsIamTester():
 
                     # the ContextKeyValues should be a list
                     if new_key == 'ContextKeyValues':
-                        result[new_key] = [value]
+                        if isinstance(value, list):
+                            result[new_key] = value
+                        else:    
+                         result[new_key] = [value]
                 else:
                     result[key] = value
 
