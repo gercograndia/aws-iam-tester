@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "aws-iam-tester"
-version = "1.0.3"
+version = "1.0.5"
 description = "AWS IAM tester - simple command-line tool to check permissions handed out to IAM users and roles."
 authors = ["Gerco Grandia <gerco.grandia@4synergy.nl>"]
 license = "MIT"
