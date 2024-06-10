@@ -29,7 +29,6 @@ from typing import (
 )  # , Literal # Literal is p3.8 and higher
 from termcolor import colored
 
-
 class AwsIamTester:
     # Defaults
     DEFAULT_SLEEP_SECONDS = 300
