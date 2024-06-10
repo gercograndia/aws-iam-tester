@@ -15,14 +15,22 @@ import re
 import time
 import yaml
 import click
-import boto3 # type: ignore
-import botocore # type: ignore
+import boto3  # type: ignore
+import botocore  # type: ignore
 
 from tabulate import tabulate
-from typing import Any, Dict, List, Optional, Tuple, Union  #, Literal # Literal is p3.8 and higher
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)  # , Literal # Literal is p3.8 and higher
 from termcolor import colored
 
-class AwsIamTester():
+
+class AwsIamTester:
     # Defaults
     DEFAULT_SLEEP_SECONDS = 300
 
@@ -30,19 +38,16 @@ class AwsIamTester():
     logger_initialized: bool
 
     # define boto3 retry logic, as the simulation api might do some throttling
-    boto3_config = botocore.config.Config(
-        retries=dict(
-            max_attempts=10
-        )
-    )
+    boto3_config = botocore.config.Config(retries=dict(max_attempts=10))
 
     def __init__(
-        self,
-        debug: bool,
-        ):
-
+        self, debug: bool = False, sts_client=None, iam_client=None, s3_client=None
+    ):
         self.logger_initialized = False
         self.debug = debug
+        self.sts_client = sts_client or boto3.client("sts")
+        self.iam_client = iam_client or boto3.client("iam", config=self.boto3_config)
+        self.s3_client = s3_client or boto3.client("s3")
 
     def get_aws_data(self):
         logger = self.get_logger()
@@ -51,16 +56,14 @@ class AwsIamTester():
         account_alias = None
 
         # first get current account id
-        sts_client = boto3.client("sts")
-        account_id = sts_client.get_caller_identity()["Account"]
-
-        # try to get the friendly account name
-        iam_client = boto3.client("iam")
+        account_id = self.sts_client.get_caller_identity()["Account"]
         try:
-            account_alias = iam_client.list_account_aliases(MaxItems=1)["AccountAliases"][0]
+            account_alias = self.iam_client.list_account_aliases(MaxItems=1)[
+                "AccountAliases"
+            ][0]
         except (KeyError, IndexError):
             account_alias = account_id
-        
+
         return account_id, account_alias
 
     def check_action(
@@ -89,7 +92,7 @@ class AwsIamTester():
                 sources=[source],
                 limit_to=[],
                 exemptions=[],
-                expect_failures=None, # this will then both denied and allows
+                expect_failures=None,  # this will then both denied and allows
                 actions=[action],
                 resources=[resource],
                 sim_context=[],
@@ -101,7 +104,7 @@ class AwsIamTester():
             else:
                 result = results[0]
 
-                decision = result['decision']
+                decision = result["decision"]
                 if decision == "allowed":
                     allowed = True
                     colour = "green"
@@ -109,7 +112,7 @@ class AwsIamTester():
                     allowed = False
                     colour = "red"
 
-                pb = result['permissions_boundary']
+                pb = result["permissions_boundary"]
                 if pb == "allowed":
                     pb_colour = "green"
                 elif pb == "denied":
@@ -117,7 +120,7 @@ class AwsIamTester():
                 else:
                     pb_colour = "white"
 
-                org_scp = result['org_scp']
+                org_scp = result["org_scp"]
                 if org_scp == "allowed":
                     org_colour = "green"
                 elif org_scp == "denied":
@@ -144,13 +147,19 @@ class AwsIamTester():
                     for ms in matched_statements:
                         click.echo(f"Policy:     {ms['SourcePolicyId']}")
                         click.echo(f"Type:       {ms['SourcePolicyType']}")
-                        click.echo(f"Start:      L{ms['StartPosition']['Line']}:C{ms['StartPosition']['Column']}")
-                        click.echo(f"End:        L{ms['EndPosition']['Line']}:C{ms['EndPosition']['Column']}")
-                
+                        click.echo(
+                            f"Start:      L{ms['StartPosition']['Line']}:C{ms['StartPosition']['Column']}"
+                        )
+                        click.echo(
+                            f"End:        L{ms['EndPosition']['Line']}:C{ms['EndPosition']['Column']}"
+                        )
+
                 return allowed
         except botocore.exceptions.ClientError as ce:
             if re.match("^(.*)(security token|AccessDenied)(.*)$", str(ce)):
-                click.echo(f"Please make sure you are logged in into AWS, with sufficient permissions.")
+                click.echo(
+                    f"Please make sure you are logged in into AWS, with sufficient permissions."
+                )
 
             raise
 
@@ -172,7 +181,7 @@ class AwsIamTester():
                 sources=sources,
                 limit_to=[],
                 exemptions=[],
-                expect_failures=True, # this will then return people with access
+                expect_failures=True,  # this will then return people with access
                 actions=[action],
                 resources=[resource],
                 sim_context=[],
@@ -191,28 +200,32 @@ class AwsIamTester():
                         matched_statements = r[ms_key]
 
                         for ms in matched_statements:
-                            policies = policies + ", " + ms['SourcePolicyId']
+                            policies = policies + ", " + ms["SourcePolicyId"]
 
-                        policies = policies[2:] # remove the first ', '
+                        policies = policies[2:]  # remove the first ', '
 
-                    to_print.append([
-                        r['source'],
-                        r['action'],
-                        r['resource'],
-                        r['decision'],
-                        policies,
-                    ])
+                    to_print.append(
+                        [
+                            r["source"],
+                            r["action"],
+                            r["resource"],
+                            r["decision"],
+                            policies,
+                        ]
+                    )
 
                 self.show_summary(to_print)
 
         except botocore.exceptions.ClientError as ce:
             if re.match("^(.*)(security token|AccessDenied)(.*)$", str(ce)):
-                click.echo(f"Please make sure you are logged in into AWS, with sufficient permissions.")
+                click.echo(
+                    f"Please make sure you are logged in into AWS, with sufficient permissions."
+                )
 
             raise
 
     def check_account(
-        self, 
+        self,
         number_of_runs: int,
         dry_run: bool,
         config_file: str,
@@ -223,26 +236,29 @@ class AwsIamTester():
         """
         Run the IAM policy tests. It returns a dict with findings (or empty if none)
         """
+
         def convert_context_dict(my_dict: Dict) -> Dict:
             result = {}
             for key, value in my_dict.items():
                 # convert key to CamelCase
                 if isinstance(key, str):
-                    new_key = ''.join(x.capitalize() or '_' for x in key.split('_'))
+                    new_key = "".join(x.capitalize() or "_" for x in key.split("_"))
                     result[new_key] = value
 
                     # the ContextKeyValues should be a list
-                    if new_key == 'ContextKeyValues':
+                    if new_key == "ContextKeyValues":
                         if isinstance(value, list):
                             result[new_key] = value
-                        else:    
-                         result[new_key] = [value]
+                        else:
+                            result[new_key] = [value]
                 else:
                     result[key] = value
 
             # convert boolean values to strings
-            if result['ContextKeyType'] == 'boolean':
-                result['ContextKeyValues'] = [str(x).lower() for x in result['ContextKeyValues']]
+            if result["ContextKeyType"] == "boolean":
+                result["ContextKeyValues"] = [
+                    str(x).lower() for x in result["ContextKeyValues"]
+                ]
 
             return result
 
@@ -250,7 +266,12 @@ class AwsIamTester():
             logger = self.get_logger()
             account_id, account_alias = self.get_aws_data()
 
-            config, global_exemptions, global_limit_to, user_landing_account = self.read_config(config_file)
+            (
+                config,
+                global_exemptions,
+                global_limit_to,
+                user_landing_account,
+            ) = self.read_config(config_file)
 
             sources = self.determine_source(
                 user_landing_account=user_landing_account,
@@ -263,7 +284,7 @@ class AwsIamTester():
 
             counter = 0
             logger.debug("Start checking the configs")
-            for cfg in config['tests']:
+            for cfg in config["tests"]:
                 # do we need to break?
                 if 0 < number_of_runs < counter:
                     break
@@ -283,13 +304,15 @@ class AwsIamTester():
 
                 # check if the expected result has the expected values
                 expected_result = cfg["expected_result"].lower()
-                if expected_result not in ['fail', 'succeed']:
+                if expected_result not in ["fail", "succeed"]:
                     raise ValueError(
                         f"The expected result should be 'fail' or 'succeed'. It is now '{expected_result}'"
                     )
 
-                expect_failures = (expected_result == "fail")
-                logger.debug(f"Run config for actions: {actions} with resources {resources}")
+                expect_failures = expected_result == "fail"
+                logger.debug(
+                    f"Run config for actions: {actions} with resources {resources}"
+                )
 
                 # check if we have a custom context
                 sim_context = None
@@ -323,14 +346,16 @@ class AwsIamTester():
             )
         except botocore.exceptions.ClientError as ce:
             if re.match("^(.*)(security token|AccessDenied)(.*)$", str(ce)):
-                click.echo(f"Please make sure you are logged in into AWS, with sufficient permissions.")
+                click.echo(
+                    f"Please make sure you are logged in into AWS, with sufficient permissions."
+                )
 
             raise
 
     def get_logger(self) -> logging.Logger:
         "Set up the logger (if not done yet) and returns it"
-        if not self.logger_initialized:            
-            self.logger = logging.getLogger('iam-tester')
+        if not self.logger_initialized:
+            self.logger = logging.getLogger("iam-tester")
             self.logger.propagate = False
             if not self.logger.handlers:
                 ch = logging.StreamHandler(sys.stdout)
@@ -340,15 +365,15 @@ class AwsIamTester():
                 else:
                     self.logger.setLevel(level=logging.INFO)
                     ch.setLevel(level=logging.INFO)
-                formatter = logging.Formatter(
-                    "%(levelname)s:\t%(message)s"
-                )
+                formatter = logging.Formatter("%(levelname)s:\t%(message)s")
                 ch.setFormatter(formatter)
                 self.logger.addHandler(ch)
 
         return self.logger
 
-    def read_config(self, config_file: str) -> Tuple[Dict, List[str], List[str], Optional[str]]:
+    def read_config(
+        self, config_file: str
+    ) -> Tuple[Dict, List[str], List[str], Optional[str]]:
         "Read and parse config file"
         logger = self.get_logger()
         logger.debug(f"Read config file {config_file}")
@@ -382,17 +407,16 @@ class AwsIamTester():
         return config, global_exemptions, global_limit_to, user_landing_account
 
     def get_iam_roles(
-            self,
-            user_landing_account: Optional[str],
-            my_account: str,
-            no_system_roles: bool
-        ) -> List[str]:
+        self,
+        user_landing_account: Optional[str],
+        my_account: str,
+        no_system_roles: bool,
+    ) -> List[str]:
         "Read (and filter) the IAM roles in the account"
         logger = self.get_logger()
-        client = boto3.client('iam')
         roles = []
 
-        paginator = client.get_paginator('list_roles')
+        paginator = self.iam_client.get_paginator("list_roles")
         page_iterator = paginator.paginate()
 
         for page in page_iterator:
@@ -401,42 +425,44 @@ class AwsIamTester():
                 # only get the roles that can be assumed by 'users'
                 policy_doc = json.dumps(role["AssumeRolePolicyDocument"])
 
-                if 'aws-service-role' not in role["Path"] and ( # ignore service roles
-                        # accept roles that can be assumed by users in my account
-                        f"arn:aws:iam::{my_account}:root" in policy_doc or
-                        # accept roles that can be assumed by a dedicated user landing account
-                        f"arn:aws:iam::{user_landing_account}:root" in policy_doc or
-                        # accept roles that can be assumed with SAML
-                        f"arn:aws:iam::{my_account}:saml-provider" in policy_doc or
-                        # do we want to include non user assumable roles
-                        not no_system_roles
-                    ):
-                    roles.append(role['Arn'])
+                if "aws-service-role" not in role["Path"] and (  # ignore service roles
+                    # accept roles that can be assumed by users in my account
+                    f"arn:aws:iam::{my_account}:root" in policy_doc
+                    or
+                    # accept roles that can be assumed by a dedicated user landing account
+                    f"arn:aws:iam::{user_landing_account}:root" in policy_doc
+                    or
+                    # accept roles that can be assumed with SAML
+                    f"arn:aws:iam::{my_account}:saml-provider" in policy_doc
+                    or
+                    # do we want to include non user assumable roles
+                    not no_system_roles
+                ):
+                    roles.append(role["Arn"])
 
         return roles
 
     def get_iam_users(self) -> List[str]:
         "Get all IAM users"
-        client = boto3.client('iam')
         users = []
 
-        paginator = client.get_paginator('list_users')
+        paginator = self.iam_client.get_paginator("list_users")
         page_iterator = paginator.paginate()
         for page in page_iterator:
             userlist = page["Users"]
             for user in userlist:
-                users.append(user['Arn'])
+                users.append(user["Arn"])
 
         return users
 
     def determine_source(
-            self,
-            account_id: str,
-            user_landing_account: Optional[str] = None,
-            no_system_roles: bool = False,
-            global_limit_to: List[str] = [],
-            global_exemptions: List[str] = [],
-        ) -> List[str]:
+        self,
+        account_id: str,
+        user_landing_account: Optional[str] = None,
+        no_system_roles: bool = False,
+        global_limit_to: List[str] = [],
+        global_exemptions: List[str] = [],
+    ) -> List[str]:
         "Determine the list of sources that needs to be evaluated"
         logger = self.get_logger()
 
@@ -445,14 +471,14 @@ class AwsIamTester():
         roles = self.get_iam_roles(
             user_landing_account=user_landing_account,
             my_account=account_id,
-            no_system_roles=no_system_roles
-            )
+            no_system_roles=no_system_roles,
+        )
 
         sources = []
         sources.extend(users)
         sources.extend(roles)
         len_1 = len(sources)
-        
+
         # If we have a global_limit_to, reduce the full set of sources
         # to only that in order to improve performance
         if global_limit_to:
@@ -474,7 +500,9 @@ class AwsIamTester():
                 exempt_sources.extend(filtered_list)
             # Now remove duplicates and subtract from sources list
             sources = list(set(sources) - set(exempt_sources))
-            logger.debug(f"Number of sources reduced with exemptions from {len_1} to {len(sources)}")
+            logger.debug(
+                f"Number of sources reduced with exemptions from {len_1} to {len(sources)}"
+            )
 
         return sources
 
@@ -483,14 +511,16 @@ class AwsIamTester():
         sources: List[str],
         limit_to: List[str],
         exemptions: List[str],
-        expect_failures: Optional[int],  # This is better but from p3.8 only: Optional[Union[Literal[True], Literal[False]]],
+        expect_failures: Optional[
+            int
+        ],  # This is better but from p3.8 only: Optional[Union[Literal[True], Literal[False]]],
         actions: List[str],
         resources: List[str],
         sim_context: List[Dict[Any, Any]],
         number_of_runs: int = -1,
         dry_run: bool = False,
         counter: int = 0,
-        ) -> Tuple[List[Dict], int]:
+    ) -> Tuple[List[Dict], int]:
         "Evaluate the list of sources for a given configuration"
 
         logger = self.get_logger()
@@ -498,7 +528,7 @@ class AwsIamTester():
 
         results = []
         for source in sources:
-            if limit_to: # do we have a limit_to?
+            if limit_to:  # do we have a limit_to?
                 exempt = True
                 for limit in limit_to:
                     if re.match(limit, source):
@@ -510,7 +540,7 @@ class AwsIamTester():
                 elif exempt:
                     click.secho(".", fg="blue", nl=False)
                     sys.stdout.flush()
-            else: # or is this source exempt from testing
+            else:  # or is this source exempt from testing
                 exempt = False
                 for exemption in exemptions:
                     if re.match(exemption, source):
@@ -553,7 +583,7 @@ class AwsIamTester():
                         # denies are failures
                         filtered_results = denies
 
-                    success = (len(filtered_results) == 0)
+                    success = len(filtered_results) == 0
 
                     if expect_failures is None:
                         results.extend(
@@ -593,41 +623,42 @@ class AwsIamTester():
         return results, counter
 
     def simulate_policy(
-            self,
+        self,
+        source: str,
+        actions: List[str],
+        resources: List[str],
+        sim_context: List[Dict] = None,
+    ) -> List[Dict]:
+        """Simulate a set of actions from a specific principal against a resource"""
+
+        def simulate(
             source: str,
             actions: List[str],
             resources: List[str],
             sim_context: List[Dict] = None,
-            ) -> List[Dict]:
-        """Simulate a set of actions from a specific principal against a resource"""
-        def simulate(
-                source: str,
-                actions: List[str],
-                resources: List[str],
-                sim_context: List[Dict] = None,
-            ) -> List[Dict]:
+        ) -> List[Dict]:
             # do we have a custom context to pass along?
             if not sim_context:
                 sim_context = [
                     {
-                        'ContextKeyName': 'aws:MultiFactorAuthPresent',
-                        'ContextKeyValues': [
+                        "ContextKeyName": "aws:MultiFactorAuthPresent",
+                        "ContextKeyValues": [
                             # Always test with MFA present, which is worst case scenario
                             # (as lots of rights might be revoked without MFA)
-                            'true',
+                            "true",
                         ],
-                        'ContextKeyType': 'boolean',
+                        "ContextKeyType": "boolean",
                     },
                     {
-                        'ContextKeyName': 'redshift:DbUser',
-                        'ContextKeyValues': [
-                            'admin',
+                        "ContextKeyName": "redshift:DbUser",
+                        "ContextKeyValues": [
+                            "admin",
                         ],
-                        'ContextKeyType': 'string',
+                        "ContextKeyType": "string",
                     },
                 ]
 
-            response = client.simulate_principal_policy(
+            response = self.iam_client.simulate_principal_policy(
                 PolicySourceArn=source,
                 ActionNames=actions,
                 ResourceArns=resources,
@@ -637,24 +668,23 @@ class AwsIamTester():
 
         logger = self.get_logger()
 
-        client = boto3.client("iam", config=self.boto3_config)
         try:
             return simulate(source, actions, resources, sim_context)
-        except client.exceptions.NoSuchEntityException as nsee:
+        except self.iam_client.exceptions.NoSuchEntityException as nsee:
             click.echo("\n")
             logger.error(
                 f"Could not find entity {source} during simulation, has it just been removed?\n{nsee}"
             )
             # but ignore it
             return []
-        except client.exceptions.ClientError as ce:
+        except self.iam_client.exceptions.ClientError as ce:
             if "throttling" in str(ce).lower():
                 logger.error(
                     colored(
-                        "\nThrottling of API is requested. " +
-                        f"Sleep for {self.DEFAULT_SLEEP_SECONDS} seconds and try again\n"
+                        "\nThrottling of API is requested. "
+                        + f"Sleep for {self.DEFAULT_SLEEP_SECONDS} seconds and try again\n"
                     ),
-                    "blue"
+                    "blue",
                 )
                 time.sleep(self.DEFAULT_SLEEP_SECONDS)
                 return simulate(source, actions, resources, sim_context)
@@ -666,18 +696,20 @@ class AwsIamTester():
         return evaluationResults["EvalDecision"] != "allowed"
 
     def construct_results(
-            self,
-            source: str,
-            results: Any,
-            print_results: bool = True,
-        ) -> List[Dict]:
+        self,
+        source: str,
+        results: Any,
+        print_results: bool = True,
+    ) -> List[Dict]:
         """Constructs a dict with the results of a simulation evaluation result"""
         output = ""
         response = []
 
         for er in results:
             if er.get("PermissionsBoundaryDecisionDetail", None):
-                if er.get("PermissionsBoundaryDecisionDetail").get("AllowedByPermissionsBoundary"):
+                if er.get("PermissionsBoundaryDecisionDetail").get(
+                    "AllowedByPermissionsBoundary"
+                ):
                     pb = "allowed"
                 else:
                     pb = "denied"
@@ -703,12 +735,12 @@ class AwsIamTester():
             )
             r = {
                 "source": source,
-                "action": er['EvalActionName'],
-                "resource": er['EvalResourceName'],
-                "decision": er['EvalDecision'],
+                "action": er["EvalActionName"],
+                "resource": er["EvalResourceName"],
+                "decision": er["EvalDecision"],
                 "permissions_boundary": pb,
                 "org_scp": org_scp,
-                "matched_statements": er['MatchedStatements'],
+                "matched_statements": er["MatchedStatements"],
             }
             response.append(r)
             output += message
@@ -718,12 +750,12 @@ class AwsIamTester():
         return response
 
     def handle_results(
-            self,
-            results: List[Dict],
-            write_to_file: bool = False,
-            output_location: str = "",
-            account: str = "",
-        ) -> int:
+        self,
+        results: List[Dict],
+        write_to_file: bool = False,
+        output_location: str = "",
+        account: str = "",
+    ) -> int:
         "Print the results or write them to file"
         logger = self.get_logger()
 
@@ -737,18 +769,18 @@ class AwsIamTester():
             sources = list(set([r["source"] for r in results]))
 
             # prepare the full_results
-            full_results['results'] = results
-            full_results['sources'] = sources
-        
+            full_results["results"] = results
+            full_results["sources"] = sources
+
         if full_results and write_to_file:
             timestr = time.strftime("%Y%m%d-%H%M%S")
-            filename = f'results-{account}-{timestr}.json'
+            filename = f"results-{account}-{timestr}.json"
 
             # remove the trailing / if present
-            output_location = output_location.rstrip('/')
+            output_location = output_location.rstrip("/")
 
             # do we need to write to s3?
-            if output_location.startswith('s3://'):
+            if output_location.startswith("s3://"):
                 # parse the output location into bucket and key
                 bucket = output_location[5:].split("/")[0]
                 # do we have a prefix?
@@ -757,11 +789,9 @@ class AwsIamTester():
                 except IndexError:
                     prefix = ""
 
-                s3_client = boto3.client('s3')
-
-                full_filename = f'{prefix}/{filename}'
+                full_filename = f"{prefix}/{filename}"
                 logger.debug(f"Try to write results to s3://{bucket}/{full_filename}")
-                s3_client.put_object(
+                self.s3_client.put_object(
                     Body=json.dumps(full_results).encode(),
                     Bucket=bucket,
                     Key=full_filename,
@@ -769,7 +799,7 @@ class AwsIamTester():
             else:
                 # first ensure directory exists
                 try:
-                    if os.path.isabs(output_location): # is output location absolute?
+                    if os.path.isabs(output_location):  # is output location absolute?
                         path = output_location
                     else:
                         path = os.path.abspath(output_location)
@@ -781,9 +811,11 @@ class AwsIamTester():
                         raise
                 outfile = None
                 try:
-                    full_filename = f'{path}/{filename}'
-                    logger.debug(f"Try to write results to local file system: {full_filename}")
-                    with open(full_filename, 'w') as outfile:
+                    full_filename = f"{path}/{filename}"
+                    logger.debug(
+                        f"Try to write results to local file system: {full_filename}"
+                    )
+                    with open(full_filename, "w") as outfile:
                         json.dump(full_results, outfile, indent=4)
                 except IOError as e:
                     logger.error(f"Could not write results to file system: {e}")
@@ -792,34 +824,35 @@ class AwsIamTester():
                         if outfile:
                             outfile.close()
                     except:
-                        pass # if outfile doesn't exist, no need to close it
+                        pass  # if outfile doesn't exist, no need to close it
 
-                logger.info(f'Results for {len(results)} results are written to {full_filename}')
+                logger.info(
+                    f"Results for {len(results)} results are written to {full_filename}"
+                )
         elif not full_results:
             logger.info(colored("No findings found!", "green"))
             return_value = 0
         else:
             logger.info(f"Complete list of matching sources:\n")
-            click.echo(json.dumps(full_results['sources'], indent=4))
+            click.echo(json.dumps(full_results["sources"], indent=4))
 
             logger.info(f"\nComplete list of {len(results)} results:\n")
-            click.echo(json.dumps(full_results['results'], indent=4))
+            click.echo(json.dumps(full_results["results"], indent=4))
 
         return return_value
 
     def show_summary(self, results):
-        '''
+        """
         Show summary containing test results.
-        '''
+        """
         click.secho("\n\nSummary:\n", bold=True)
         headers = [
-            'Source',
-            'Action',
-            'Resource',
-            'Decision',
-            'Policies',
+            "Source",
+            "Action",
+            "Resource",
+            "Decision",
+            "Policies",
         ]
 
         click.echo(tabulate(results, headers=headers, tablefmt="github"))
         click.echo("\n")
-
