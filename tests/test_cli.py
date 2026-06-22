@@ -11,9 +11,19 @@ from pyassert import assert_that
 
 script_path = pathlib.Path(__file__).parent.absolute()
 
-def run_command(command_list, do_assert=True, show_debug=False):
+def run_command(command_list, do_assert=True, show_debug=False, preserve_aws_creds=False):
+    env = os.environ.copy()
+    env["AWS_IAM_TESTER_TEST_MODE"] = "1"
+    env["AWS_IAM_TESTER_SKIP_VERSION_CHECK"] = "1"
+    env["AWS_DEFAULT_REGION"] = "us-east-1"
+    if not preserve_aws_creds:
+        env.pop("AWS_ACCESS_KEY_ID", None)
+        env.pop("AWS_SECRET_ACCESS_KEY", None)
+        env.pop("AWS_SESSION_TOKEN", None)
+        env.pop("SECRET_AWS_ACCESS_KEY", None)
     process = subprocess.Popen(
         command_list,
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
@@ -40,6 +50,12 @@ def test_version():
         ['aws-iam-tester', '--version'],
     )
     assert_that(stdout).contains('version')
+
+
+def test_version_check_failures_do_not_abort_cli():
+    from aws_iam_tester.cli import check_latest_version
+
+    check_latest_version()
 
 def test_test_runs():
     returncode, stdout, stderr = run_command(
@@ -134,7 +150,8 @@ def test_without_aws_creds():
     os.environ["SECRET_AWS_ACCESS_KEY"] = "whatever"
     returncode, stdout, stderr = run_command(
         command_list=['aws-iam-tester', 'account', '--config-file', f'{script_path}/config.yml', '--dry-run'],
-        do_assert=False
+        do_assert=False,
+        preserve_aws_creds=True,
     )
     del os.environ["AWS_ACCESS_KEY_ID"]
     del os.environ["SECRET_AWS_ACCESS_KEY"]

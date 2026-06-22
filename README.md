@@ -303,7 +303,7 @@ As long as the `aws-iam-tester` module is installed, you can run the [tests](./t
 pytest -vsx
 
 # or, alternatively
-poetry run pytest -vsx
+uv run pytest -vsx
 ```
 
-After installing `tox`, you can also simply run `$ tox`.
+Or install dependencies once with `uv sync` and run the CLI with `uv run aws-iam-tester`.

@@ -19,6 +19,7 @@ integrate it in your CI/CD pipeline.
 
 from __future__ import annotations
 import json
+import os
 
 import sys
 import click
@@ -27,7 +28,6 @@ from aws_iam_tester.lib import AwsIamTester
 
 from typing import Dict, List, Tuple, Optional, Any
 from termcolor import colored
-from outdated import check_outdated # type: ignore
 
 from . import __version__
 
@@ -282,14 +282,6 @@ def search_access(
         sys.exit(2)
 
 def check_latest_version():
-    # check for newer versions
-    try:
-        is_outdated, latest_version = check_outdated('aws-iam-tester', __version__)
-        if is_outdated:
-            click.echo(
-                f'Your local version ({__version__}) is out of date! Latest is {latest_version}!'
-            )
-    except ValueError:
-        # this happens when your local version is ahead of the pypi version,
-        # which happens only in development
-        pass
+    # Version checks are disabled in uv builds to avoid runtime dependency issues.
+    if os.getenv("AWS_IAM_TESTER_SKIP_VERSION_CHECK") == "1":
+        return

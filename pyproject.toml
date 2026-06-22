@@ -1,44 +1,51 @@
-[tool.poetry]
+[project]
 name = "aws-iam-tester"
-version = "1.0.6"
+version = "1.1.0"
 description = "AWS IAM tester - simple command-line tool to check permissions handed out to IAM users and roles."
-authors = ["Gerco Grandia <gerco.grandia@4synergy.nl>"]
-license = "MIT"
+license = { text = "MIT" }
+authors = [
+    { name = "Gerco Grandia", email = "gerco.grandia@4synergy.nl" },
+]
 readme = "README.md"
-homepage = "https://github.com/gercograndia/aws-iam-tester"
-repository = "https://github.com/gercograndia/aws-iam-tester"
-documentation = "https://github.com/gercograndia/aws-iam-tester/blob/master/README.md"
-keywords = ["AWS",
-            "IAM",
-            "Policy",
-            "Tester",
-            "Evaluation",
-            "Simulator"]
+requires-python = ">=3.11"
+dependencies = [
+    "boto3>=1.38.0,<2.0.0",
+    "pyyaml>=6.0.2,<7.0.0",
+    "click>=8.1.8,<9.0.0",
+    "termcolor>=2.5.0,<3.0.0",
+    "tabulate>=0.9.0,<0.10.0",
+    "six>=1.17.0,<2.0.0",
+]
+keywords = [
+    "AWS",
+    "IAM",
+    "Policy",
+    "Tester",
+    "Evaluation",
+    "Simulator",
+]
 
-[tool.poetry.dependencies]
-python = "^3.7.2"
-boto3 = "^1.26.26"
-pyyaml = "^6.0"
-click = "^8.1.3"
-termcolor = "^2.1.0"
-outdated = "^0.2.2"
-tabulate = "^0.9.0"
-six = "^1.16.0"
+[project.urls]
+Homepage = "https://github.com/gercograndia/aws-iam-tester"
+Repository = "https://github.com/gercograndia/aws-iam-tester"
+Documentation = "https://github.com/gercograndia/aws-iam-tester/blob/master/README.md"
+Issues = "https://github.com/gercograndia/aws-iam-tester/issues"
 
-[tool.poetry.dev-dependencies]
-pytest = "^7.2"
-pyassert = "^0.4.2"
-pylint = "^2.15.8"
-rope = "^1.5.1"
-tox = "^4.0.3"
-mypy = "^0.990"
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5,<9.0.0",
+    "pyassert>=0.4.2,<0.5.0",
+    "pylint>=3.3.6,<4.0.0",
+    "rope>=1.13.0,<2.0.0",
+    "mypy>=1.15.0,<2.0.0",
+]
 
-[tool.poetry.scripts]
+[project.scripts]
 aws-iam-tester = "aws_iam_tester.cli:cli"
 
-[tool.poetry.urls]
-issues = "https://github.com/gercograndia/aws-iam-tester/issues"
-
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["setuptools>=77.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+default-groups = ["dev"]

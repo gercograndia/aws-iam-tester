@@ -44,6 +44,14 @@ class AwsIamTester:
     ):
         self.logger_initialized = False
         self.debug = debug
+        test_mode = os.getenv("AWS_IAM_TESTER_TEST_MODE") == "1"
+        if test_mode:
+            from aws_iam_tester.testing import create_test_clients
+
+            fake_sts, fake_iam, fake_s3 = create_test_clients()
+            sts_client = sts_client or fake_sts
+            iam_client = iam_client or fake_iam
+            s3_client = s3_client or fake_s3
         self.sts_client = sts_client or boto3.client("sts")
         self.iam_client = iam_client or boto3.client("iam", config=self.boto3_config)
         self.s3_client = s3_client or boto3.client("s3")
@@ -96,6 +104,8 @@ class AwsIamTester:
                 resources=[resource],
                 sim_context=[],
             )
+            if not results:
+                raise Exception(f"Could not find entity {source}")
             if json_output:
                 return self.handle_results(
                     results=results,
